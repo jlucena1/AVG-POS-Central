@@ -1,0 +1,57 @@
+page 50002 "AVG Setup"
+{
+    ApplicationArea = All;
+    Caption = 'AVG Setup';
+    PageType = Card;
+    InsertAllowed = false;
+    DeleteAllowed = false;
+    SourceTable = "AVG Setup";
+    UsageCategory = Administration;
+    layout
+    {
+        area(content)
+        {
+            group(General)
+            {
+                Caption = 'General';
+
+                field("Prompt Messages"; Rec."Prompt Messages Format")
+                {
+
+                }
+
+                field("Error Prompt Messages Format"; Rec."Error Prompt Messages Format")
+                {
+
+
+                }
+                field("Last Date Modified"; Rec."Last Date Modified")
+                {
+                    Editable = false;
+                }
+                field("Last Modified By"; Rec."Last Modified By")
+                {
+                    Editable = false;
+                }
+                field("Date Initialized"; Rec."Date Initialized")
+                {
+                    Editable = false;
+                }
+                field("Initialized By"; Rec."Initialized By")
+                {
+                    Editable = false;
+                }
+            }
+        }
+    }
+    trigger OnOpenPage()
+
+    begin
+        if not rec.Get() then begin
+            rec.Init();
+            rec."Date Initialized" := CurrentDateTime;
+            rec."Initialized By" := UserId;
+            Rec.Insert();
+        end;
+    end;
+}
