@@ -3,7 +3,7 @@ page 50001 "AllEasy Trans. Line Entry"
     ApplicationArea = All;
     Caption = 'AllEasy Trans. Line Entry';
     PageType = List;
-    SourceTable = "AllEasy Trans. Line Entry";
+    SourceTable = "AVG Trans. Line Entry";
     UsageCategory = History;
     InsertAllowed = false;
     ModifyAllowed = false;
@@ -32,7 +32,7 @@ page 50001 "AllEasy Trans. Line Entry"
                 {
                     ToolTip = 'Specifies the value of the Trans. Line No. field.';
                 }
-                field("AllEasy Process Type"; Rec."AllEasy Process Type")
+                field("Process Type"; Rec."Process Type")
                 {
                     ToolTip = 'Specifies the value of the AllEasy Process Type field.';
                 }

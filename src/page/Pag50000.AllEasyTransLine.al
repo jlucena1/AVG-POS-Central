@@ -3,7 +3,7 @@ page 50000 "AllEasy Trans. Line"
     ApplicationArea = All;
     Caption = 'AllEasy Trans. Line';
     PageType = List;
-    SourceTable = "AllEasy Trans. Line";
+    SourceTable = "AVG Trans. Line";
     UsageCategory = Lists;
 
     layout
@@ -32,7 +32,7 @@ page 50000 "AllEasy Trans. Line"
                 {
                     ToolTip = 'Specifies the value of the Trans. Line No. field.';
                 }
-                field("AllEasy Process Type"; Rec."AllEasy Process Type")
+                field("Process Type"; Rec."Process Type")
                 {
                     ToolTip = 'Specifies the value of the AllEasy Process Type field.';
                 }

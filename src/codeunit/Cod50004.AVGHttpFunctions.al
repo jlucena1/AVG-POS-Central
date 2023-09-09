@@ -1,3 +1,4 @@
+
 codeunit 50004 "AVG Http Functions"
 {
     SingleInstance = true;
@@ -9,9 +10,11 @@ codeunit 50004 "AVG Http Functions"
         AVGPOSSession: Codeunit "AVG POS Session";
         LSCHttpWrapper: Codeunit "LSC Http Wrapper";
         LSCPOSTransactionCU: Codeunit "LSC POS Transaction";
+        LSCPOSSession: Codeunit "LSC POS Session";
+        LSCPOSTransLineCU: Codeunit "LSC POS Trans. Lines";
         LSCAuthType: Enum "LSC Http AuthType";
         LSCContentType: Enum "LSC Http ContentType";
-
+        TypeHelper: Codeunit "Type Helper";
 
     procedure ProcessAuthToken(pTxtUrl: Text; pTxtEndpoint: Text; pTxtClientID: Text; pTxtClientSecret: Text; pBolPayQR: Boolean; pTxtHeader1: Text; pTxtHeader2: Text): Text;
     var
@@ -293,6 +296,434 @@ codeunit 50004 "AVG Http Functions"
         EXIT(bolOK);
     end;
 
+    procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal"; WithPromptMsg: Boolean): Boolean
+    var
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        VerifiedKeyPair: Boolean;
+    begin
+        CLEAR(SignatureString);
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(7));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'H'));// H = HeartBeat;
+        JObjectReqBodyDetails.Add('echo', 'test connection');
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."HeartBeat Check Endpoint";
+            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then
+                    IF WithPromptMsg THEN
+                        AVGPOSFunctions.AVGPOSMessage('GCash Heartbeat is Online.')
+                    ELSE
+                        EXIT(TRUE);
+            end ELSE
+                if WithPromptMsg then
+                    AVGPOSFunctions.AVGPOSErrorMessage('GCash Heartbeat is Offline.')
+                ELSE
+                    exit(false);
+        END;
+
+    end;
+
+    procedure GCashRetailPay(pRecPOSTerminal: Record "LSC POS Terminal"; WithPromptMsg: Boolean; pTxtAmount: Text; pQRCode: Code[80]): Boolean
+    var
+        JObjectOrder: JsonObject;
+        JObjectShopInfo: JsonObject;
+        JObjectScannerInfo: JsonObject;
+        JObjectEnvInfo: JsonObject;
+        JObjectMoney: JsonObject;
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        VerifiedKeyPair: Boolean;
+        LSCPOSTransLineRec: Record "LSC POS Trans. Line";
+        Amount: Decimal;
+        MerchantTransId: Text;
+    begin
+        Clear(Amount);
+        IF NOT Evaluate(Amount, pTxtAmount) then
+            AVGPOSSession.AVGPOSErrorMessages('Invalid Amount.');
+
+        IF Amount = 0 then
+            EXIT;
+
+        pTxtAmount := LSCPOSTransactionCU.FormatAmount(Amount);
+        pTxtAmount := DELCHR(pTxtAmount, '=', ',|.');
+
+        LSCPOSTransLineCU.GetCurrentLine(LSCPOSTransLineRec);
+        CLEAR(MerchantTransId);
+        MerchantTransId := DELCHR(AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'P')); // P = Retail Pay
+        IF MerchantTransId = '' then
+            MerchantTransId := LSCPOSTransLineRec."Receipt No.";
+
+        CLEAR(SignatureString);
+        //Order
+
+        JObjectMoney.Add('currency', LSCPOSSession.ActiveCurrencyCode());
+        JObjectMoney.Add('value', pTxtAmount);
+
+        JObjectOrder.Add('orderAmount', JObjectMoney);
+        JObjectOrder.Add('merchantTransId', LSCPOSTransLineRec."Receipt No.");
+        JObjectOrder.Add('orderTitle', pRecPOSTerminal."GCash Order Title");
+
+        JObjectShopInfo.Add('shopId', pRecPOSTerminal."Shop ID");
+        JObjectShopInfo.Add('shopName', pRecPOSTerminal."Shop Name");
+
+        JObjectScannerInfo.Add('deviceId', pRecPOSTerminal."GCash Scanner Device ID");
+        JObjectScannerInfo.Add('deviceIp', pRecPOSTerminal."GCash Scanner Device IP");
+
+        JObjectEnvInfo.Add('orderTerminalType', pRecPOSTerminal."GCash Order Terminal Type");
+        JObjectEnvInfo.Add('terminalType', pRecPOSTerminal."GCash Terminal Type");
+        JObjectEnvInfo.Add('merchantTerminalId', pRecPOSTerminal."GCash Merchant Terminal ID");
+
+        //Header
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(8));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'P')); // P = Retail Pay
+
+        //Body
+        JObjectReqBodyDetails.Add('order', JObjectOrder);
+        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
+        JObjectReqBodyDetails.Add('shopInfo', JObjectShopInfo);
+        JObjectReqBodyDetails.Add('scannerInfo', JObjectScannerInfo);
+        JObjectReqBodyDetails.Add('productCode', pRecPOSTerminal."GCash Merchant ID");
+        JObjectReqBodyDetails.Add('authCodeType', pRecPOSTerminal."GCash Merchant ID");
+        JObjectReqBodyDetails.Add('authCode', pQRCode);
+        JObjectReqBodyDetails.Add('envInfo', JObjectEnvInfo);
+
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Retail Pay Endpoint";
+            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then
+                    IF WithPromptMsg THEN
+                        AVGPOSFunctions.AVGPOSMessage('GCash Heartbeat is Online.')
+                    ELSE
+                        EXIT(TRUE);
+            end ELSE
+                if WithPromptMsg then
+                    AVGPOSFunctions.AVGPOSErrorMessage('GCash Heartbeat is Offline.')
+                ELSE
+                    exit(false);
+        END;
+    end;
+
+    procedure GCashQuery(pRecPOSTerminal: Record "LSC POS Terminal"; WithPromptMsg: Boolean; pAcqID: Text): Boolean
+    var
+        JObjectOrder: JsonObject;
+        JObjectShopInfo: JsonObject;
+        JObjectScannerInfo: JsonObject;
+        JObjectEnvInfo: JsonObject;
+        JObjectMoney: JsonObject;
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        VerifiedKeyPair: Boolean;
+        LSCPOSTransLineRec: Record "LSC POS Trans. Line";
+    begin
+
+        CLEAR(SignatureString);
+
+        //Header
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(9));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'Q'));// Q = Query Trans
+
+        //Body
+        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
+        JObjectReqBodyDetails.Add('acquirementId', pAcqID);
+
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Query Transaction Endpoint";
+            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then
+                    IF WithPromptMsg THEN
+                        AVGPOSFunctions.AVGPOSMessage('GCash Heartbeat is Online.')
+                    ELSE
+                        EXIT(TRUE);
+            end ELSE
+                if WithPromptMsg then
+                    AVGPOSFunctions.AVGPOSErrorMessage('GCash Heartbeat is Offline.')
+                ELSE
+                    exit(false);
+        END;
+    end;
+
+    procedure GCashCancel(pRecPOSTerminal: Record "LSC POS Terminal"; WithPromptMsg: Boolean; pTxtAcqId: Text): Boolean
+    var
+        JObjectOrder: JsonObject;
+        JObjectShopInfo: JsonObject;
+        JObjectScannerInfo: JsonObject;
+        JObjectEnvInfo: JsonObject;
+        JObjectMoney: JsonObject;
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        VerifiedKeyPair: Boolean;
+        LSCPOSTransLineRec: Record "LSC POS Trans. Line";
+        Amount: Decimal;
+    begin
+
+        //Header
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(10));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'C'));// C = Cancel Trans.
+
+        //Body
+        JObjectReqBodyDetails.Add('acquirementId', pTxtAcqId);
+        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
+
+
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Cancel Transaction Endpoint";
+            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then
+                    IF WithPromptMsg THEN
+                        AVGPOSFunctions.AVGPOSMessage('GCash Heartbeat is Online.')
+                    ELSE
+                        EXIT(TRUE);
+            end ELSE
+                if WithPromptMsg then
+                    AVGPOSFunctions.AVGPOSErrorMessage('GCash Heartbeat is Offline.')
+                ELSE
+                    exit(false);
+        END;
+    end;
+
+    procedure GCashRefund(pRecPOSTerminal: Record "LSC POS Terminal"; WithPromptMsg: Boolean; pTxtAmount: Text; pQRCode: Code[80]): Boolean
+    var
+        JObjectRefundOrder: JsonObject;
+        JObjectMoney: JsonObject;
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        VerifiedKeyPair: Boolean;
+        LSCPOSTransLineRec: Record "LSC POS Trans. Line";
+        Amount: Decimal;
+        RefundReasonInfocode: Record "LSC Infocode";
+    begin
+        pRecPOSTerminal.TestField("GCash Reason Code");
+        RefundReasonInfocode.GET(pRecPOSTerminal."GCash Reason Code");
+
+        Clear(Amount);
+        IF NOT Evaluate(Amount, pTxtAmount) then
+            AVGPOSSession.AVGPOSErrorMessages('Invalid Amount.');
+
+        IF Amount = 0 then
+            EXIT;
+
+        pTxtAmount := LSCPOSTransactionCU.FormatAmount(Amount);
+        pTxtAmount := DELCHR(pTxtAmount, '=', ',|.');
+
+        CLEAR(SignatureString);
+        //Order
+        LSCPOSTransLineCU.GetCurrentLine(LSCPOSTransLineRec);
+        JObjectMoney.Add('currency', LSCPOSSession.ActiveCurrencyCode());
+        JObjectMoney.Add('value', pTxtAmount);
+
+
+        //Header
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(11));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'R'));// R = Refund Trans.
+
+        //Body
+        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
+        JObjectReqBodyDetails.Add('acquirementId', pRecPOSTerminal."GCash Merchant ID");
+        // JObjectReqBodyDetails.Add('merchantTransId', LSCPOSTransLineRec."Receipt No.");
+        JObjectReqBodyDetails.Add('requestId', LSCPOSTransLineRec."Receipt No.");
+        JObjectReqBodyDetails.Add('refundAmount', JObjectRefundOrder);
+
+        JObjectReqBodyDetails.Add('refundAppliedTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqBodyDetails.Add('refundReason', RefundReasonInfocode.Description);
+
+
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Refund Transaction Endpoint";
+            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then
+                    IF WithPromptMsg THEN
+                        AVGPOSFunctions.AVGPOSMessage('GCash Heartbeat is Online.')
+                    ELSE
+                        EXIT(TRUE);
+            end ELSE
+                if WithPromptMsg then
+                    AVGPOSFunctions.AVGPOSErrorMessage('GCash Heartbeat is Offline.')
+                ELSE
+                    exit(false);
+        END;
+    end;
+
+    local procedure ProcessGCashHttpWebRequest(EndpointText: Text; JObjectRequest: JsonObject): Boolean
+    begin
+        ClearHttpVars;
+        LSCHttpWrapper.KeepAlive(true);
+        LSCHttpWrapper.ContentTypeFromEnum(LSCContentType::Json);
+        LSCHttpWrapper.SetHeader('User-Agent', 'AVGGCash');
+        LSCHttpWrapper.Url(EndpointText);
+        LSCHttpWrapper.Method('POST');
+        LSCHttpWrapper.RequestJson(JObjectRequest);
+        IF LSCHttpWrapper.Send() THEN
+            EXIT(TRUE)
+        ELSE
+            EXIT(FALSE);
+    end;
+
+    local procedure GCashGenerateSignature(pJObjectRequest: Text; pRecPOSTerminal: Record "LSC POS Terminal"; var SignatureString: Text): Boolean;
+    var
+        txtReadPrivateKey: Text;
+        txtReadPrivateKeyValue: Text;
+        txtReadPublicKey: Text;
+        txtReadPublicKeyValue: Text;
+        SignatureBase64: Text;
+        InStrPrivateKey: InStream;
+        InStrPublicKey: InStream;
+        PrivateKeyReader: DotNet PemReader;
+        PubkeyReader: DotNet PemReader;
+        PrivateKeyCert: DotNet RsaPrivateCrtKeyParameters;
+        PublicKeyCert: DotNet RsaKeyParameters;
+        StringReader: DotNet StringReader;
+        CustTextReader: DotNet CustTextReader;
+        Sha256Digest: DotNet Sha256Digest;
+        RsaDigestSigner: DotNet RsaDigestSigner;
+        dataBytes: DotNet Array;
+        signatureBytes: DotNet Array;
+        Encoder: DotNet Encoding;
+        Convert64: DotNet Convert;
+        Verified: Boolean;
+    begin
+
+        CLEAR(SignatureBase64);
+        CLEAR(txtReadPrivateKey);
+        CLEAR(txtReadPrivateKeyValue);
+        pRecPOSTerminal.CalcFields("GCash Private Key", "GCash Public Key");
+        IF pRecPOSTerminal."GCash Private Key".HasValue THEN begin
+            pRecPOSTerminal."GCash Private Key".CreateInStream(InStrPrivateKey);
+            while not InStrPrivateKey.EOS DO begin
+                InStrPrivateKey.Read(txtReadPrivateKey);
+                txtReadPrivateKeyValue += txtReadPrivateKey;
+            end;
+            pRecPOSTerminal."GCash Public Key".CreateInStream(InStrPublicKey);
+            while not InStrPublicKey.EOS DO begin
+                InStrPublicKey.Read(txtReadPublicKey);
+                txtReadPublicKeyValue += txtReadPublicKey;
+            end;
+        end;
+
+        // SignData
+        StringReader := StringReader.StringReader(txtReadPrivateKeyValue);
+        CustTextReader := StringReader;
+        PrivateKeyReader := PrivateKeyReader.PemReader(CustTextReader);
+        PrivateKeyCert := PrivateKeyReader.ReadObject;
+        Sha256Digest := Sha256Digest.Sha256Digest;
+        dataBytes := Encoder.UTF8.GetBytes(STRSUBSTNO('%1', pJObjectRequest));
+        RsaDigestSigner := RsaDigestSigner.RsaDigestSigner(Sha256Digest);
+        RsaDigestSigner.Init(TRUE, PrivateKeyCert);
+        RsaDigestSigner.BlockUpdate(dataBytes, 0, dataBytes.Length);
+        SignatureBase64 := Convert64.ToBase64String(RsaDigestSigner.GenerateSignature());
+        SignatureString := SignatureBase64;
+
+        //Verify
+        StringReader := StringReader.StringReader(txtReadPublicKeyValue);
+        CustTextReader := StringReader;
+        PubkeyReader := PubkeyReader.PemReader(CustTextReader);
+        PublicKeyCert := PubkeyReader.ReadObject();
+        Sha256Digest := Sha256Digest.Sha256Digest();
+        dataBytes := Encoder.UTF8.GetBytes(STRSUBSTNO('%1', pJObjectRequest));
+        RsaDigestSigner := RsaDigestSigner.RsaDigestSigner(Sha256Digest);
+        RsaDigestSigner.Init(FALSE, PublicKeyCert);
+        RsaDigestSigner.BlockUpdate(dataBytes, 0, dataBytes.Length);
+        Verified := RsaDigestSigner.VerifySignature(Convert64.FromBase64String(SignatureBase64));
+
+        EXIT(Verified);
+    end;
+
+
     procedure GetResponseJsonByPathText(pPath: Text): Text;
     var
         JTokenLocal: JsonToken;
@@ -309,6 +740,17 @@ codeunit 50004 "AVG Http Functions"
         END ELSE
             ResponseText := '';
         EXIT(ResponseText);
+    end;
+
+    procedure GetGCashFunction(GCashFunc: Integer): Text;
+    var
+        GCashFunctionTypes: Enum "AVG Type Trans. Line";
+        txtFunctionName: Text;
+    begin
+        CLEAR(txtFunctionName);
+        GCashFunctionTypes := "AVG Type Trans. Line".FromInteger(GCashFunc);
+        txtFunctionName := FORMAT(GCashFunctionTypes);
+        EXIT(txtFunctionName);
     end;
 
     procedure ClearHttpVars()

@@ -82,7 +82,7 @@ codeunit 50003 "AVG Event Subs. Trans."
                 end;
             50103:
                 begin
-
+                    InputValue := POSControlInteface.GetInputText(POSSession.POSNumpadInputID());
                 end;
         END;
         IsHandled := True;
@@ -120,7 +120,7 @@ codeunit 50003 "AVG Event Subs. Trans."
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction", OnBeforePostTransaction, '', false, false)]
     local procedure OnBeforePostTransaction(var Rec: Record "LSC POS Transaction"; var IsHandled: Boolean);
     var
-        AllEasyTransLine: Record "AllEasy Trans. Line";
+        AllEasyTransLine: Record "AVG Trans. Line";
         POSTerminalLoc: Record "LSC POS Terminal";
         intLTriggerID: Integer;
     begin
@@ -138,13 +138,13 @@ codeunit 50003 "AVG Event Subs. Trans."
         AllEasyTransLine.SETRANGE("Receipt No.", Rec."Receipt No.");
         IF AllEasyTransLine.FindFirst() THEN BEGIN
             intLTriggerID := 0;
-            case AllEasyTransLine."AllEasy Process Type" of
-                AllEasyTransLine."AllEasy Process Type"::"Cash In Inquire":
-                    intLTriggerID := AllEasyTransLine."AllEasy Process Type"::"Cash In Credit".AsInteger();
-                AllEasyTransLine."AllEasy Process Type"::"Cash Out Inquire":
-                    intLTriggerID := AllEasyTransLine."AllEasy Process Type"::"Cash Out Process".AsInteger();
-                AllEasyTransLine."AllEasy Process Type"::"Pay QR Inquire":
-                    intLTriggerID := AllEasyTransLine."AllEasy Process Type"::"Pay QR Process".AsInteger();
+            case AllEasyTransLine."Process Type" of
+                AllEasyTransLine."Process Type"::"Cash In Inquire":
+                    intLTriggerID := AllEasyTransLine."Process Type"::"Cash In Credit".AsInteger();
+                AllEasyTransLine."Process Type"::"Cash Out Inquire":
+                    intLTriggerID := AllEasyTransLine."Process Type"::"Cash Out Process".AsInteger();
+                AllEasyTransLine."Process Type"::"Pay QR Inquire":
+                    intLTriggerID := AllEasyTransLine."Process Type"::"Pay QR Process".AsInteger();
             end;
             IF intLTriggerID <> 0 THEN
                 IF NOT AllEasyFunctions.ValidateAllEasyApi(
@@ -174,8 +174,8 @@ codeunit 50003 "AVG Event Subs. Trans."
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Post Utility", OnWriteTransactionToDatabase, '', false, false)]
     local procedure OnWriteTransactionToDatabase(var TransactionHeader: Record "LSC Transaction Header");
     var
-        AllEasyTransLine: Record "AllEasy Trans. Line";
-        AllEasyTransLineEntry: Record "AllEasy Trans. Line Entry";
+        AllEasyTransLine: Record "AVG Trans. Line";
+        AllEasyTransLineEntry: Record "AVG Trans. Line Entry";
     begin
         AllEasyTransLine.RESET;
         AllEasyTransLine.SetCurrentKey("Receipt No.", "Line No.");
@@ -195,7 +195,7 @@ codeunit 50003 "AVG Event Subs. Trans."
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnVoidTransaction, '', false, false)]
     local procedure OnVoidTransaction(var POSTrans: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line");
     var
-        AllEasyTransLine: Record "AllEasy Trans. Line";
+        AllEasyTransLine: Record "AVG Trans. Line";
     begin
         AllEasyTransLine.Reset();
         AllEasyTransLine.SetRange("Receipt No.", POSTrans."Receipt No.");
@@ -206,7 +206,7 @@ codeunit 50003 "AVG Event Subs. Trans."
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnVoidLine, '', false, false)]
     local procedure OnVoidLine(var POSTransLine: Record "LSC POS Trans. Line"; var IsHandled: Boolean);
     var
-        AllEasyTransLine: Record "AllEasy Trans. Line";
+        AllEasyTransLine: Record "AVG Trans. Line";
     begin
         AllEasyTransLine.Reset();
         AllEasyTransLine.SetRange("Receipt No.", POSTransLine."Receipt No.");

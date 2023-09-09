@@ -24,14 +24,19 @@ codeunit 50000 "AVG Integration Execute"
         FunctionalityProfile.GET(POSSession.FunctionalityProfileID());
         CASE Rec.Command of
             'ALLEASYCASHIN':
-                AllEasyCashInEx;
+                AllEasyCashInEx();
             'ALLEASYCASHOUT':
-                AllEasyCashOutEx;
+                AllEasyCashOutEx();
             'ALLEASYPAYQR':
-                AllEasyPayQREx;
-        // 'GCASHPAY':
-        // 'GCASHCANCEL':
-        // 'GCASHREFUND':
+                AllEasyPayQREx();
+            'GCASHCHECK':
+                GCashHeartBeatCheckEx();
+            'GCASHPAY':
+                GCashPayEx();
+            'GCASHCANCEL':
+                GCashCancelEx();
+            'GCASHREFUND':
+                GCashRefundEx();
         END;
         Rec := GlobalRec;
     end;
@@ -62,4 +67,30 @@ codeunit 50000 "AVG Integration Execute"
         POSTransactionCU.OpenNumericKeyboard(PayQRCodeAmountMsg, 0, '', 50102);
         EXIT;
     end;
+
+    local procedure GCashHeartBeatCheckEx()
+    begin
+        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+    end;
+
+    local procedure GCashPayEx()
+    begin
+        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+    end;
+
+    local procedure GCashQueryEx()
+    begin
+        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+    end;
+
+    local procedure GCashCancelEx()
+    begin
+        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+    end;
+
+    local procedure GCashRefundEx()
+    begin
+        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+    end;
+
 }

@@ -2,7 +2,7 @@
   "id": "ac279206-73f9-4e10-89a7-7fabccf7df29",
   "name": "AVG Central App",
   "publisher": "AllValue Holdings Corp.",
-  "version": "22.0.0.0",
+  "version": "22.0.0.1",
   "brief": "",
   "description": "",
   "privacyStatement": "",
@@ -11,6 +11,12 @@
   "url": "https://allvalue.com.ph/",
   "logo": "",
   "dependencies": [
+    {
+      "id": "16a4b8e9-d603-4a8d-9c29-11ac4ac9ac28",
+      "name": "LSC20 PHPOS",
+      "publisher": "Associates 365",
+      "version": "20.0.0.0"
+    },
     {
       "id": "5ecfc871-5d82-43f1-9c54-59685e82318d",
       "name": "LS Central",
@@ -42,5 +48,6 @@
   "runtime": "11.0",
   "features": [
     "NoImplicitWith"
-  ]
+  ], 
+  "target": "OnPrem"
 }

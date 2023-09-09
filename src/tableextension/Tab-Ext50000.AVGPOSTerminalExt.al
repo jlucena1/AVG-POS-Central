@@ -247,6 +247,12 @@ tableextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal"
         {
             Caption = 'GCash Tender Type';
             DataClassification = CustomerContent;
+            TableRelation = "LSC Tender Type".Code WHERE("Store No." = FIELD("Store No."));
+            trigger OnValidate()
+            begin
+                TenderType.GET("Store No.", "GCash Tender Type");
+                "GCash Tender Type Desc." := TenderType.Description;
+            end;
         }
         field(50145; "Enable GCash Pay"; Boolean)
         {
@@ -270,25 +276,25 @@ tableextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal"
         }
         field(50149; "HeartBeat Check Endpoint"; Text[50])
         {
-            Caption = 'HeartBeat Check Endpoint"';
+            Caption = 'HeartBeat Check Endpoint';
             DataClassification = CustomerContent;
         }
-        field(50150; "Retail Pay Endpoint"; Integer)
+        field(50150; "Retail Pay Endpoint"; Text[50])
         {
             Caption = 'Retail Pay Endpoint';
             DataClassification = CustomerContent;
         }
-        field(50151; "Query Transaction Endpoint"; Integer)
+        field(50151; "Query Transaction Endpoint"; Text[50])
         {
             Caption = 'Query Transaction Endpoint';
             DataClassification = CustomerContent;
         }
-        field(50152; "Cancel Transaction Endpoint"; Integer)
+        field(50152; "Cancel Transaction Endpoint"; Text[50])
         {
             Caption = 'Cancel Transaction Endpoint';
             DataClassification = CustomerContent;
         }
-        field(50153; "Refund Transaction Endpoint"; Integer)
+        field(50153; "Refund Transaction Endpoint"; Text[50])
         {
             Caption = 'Refund Transaction Endpoint';
             DataClassification = CustomerContent;
@@ -298,7 +304,28 @@ tableextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal"
             Caption = 'GCash Version';
             DataClassification = CustomerContent;
         }
-
+        field(50155; "GCash Private Key"; Blob)
+        {
+            Caption = 'GCash Private Key';
+            DataClassification = CustomerContent;
+        }
+        field(50156; "GCash Public Key"; Blob)
+        {
+            Caption = 'GCash Public Key';
+            DataClassification = CustomerContent;
+        }
+        field(50157; "GCash Reason Code"; Code[20])
+        {
+            Caption = 'GCash Reason Code';
+            DataClassification = CustomerContent;
+            TableRelation = "LSC Infocode".Code;
+        }
+        field(50158; "GCash Tender Type Desc."; Code[20])
+        {
+            Caption = 'GCash Tender Type Desc.';
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
     var
         IncExpAcc: Record "LSC Income/Expense Account";

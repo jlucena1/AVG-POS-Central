@@ -5,7 +5,7 @@ codeunit 50005 "AVG POS Session"
     var
         AVGSetup: Record "AVG Setup";
         LSCPOSTransaction: Codeunit "LSC POS Transaction";
-        LSCPOSession: Codeunit "LSC POS Session";
+        LSCPOSSession: Codeunit "LSC POS Session";
         CurrPayQR: Text;
         CurrPayQRAmountText: Text;
         CurrPartnerRefNo: Text;
