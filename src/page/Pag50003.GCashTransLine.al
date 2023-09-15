@@ -5,7 +5,8 @@ page 50003 "GCash Trans. Line"
     PageType = List;
     SourceTable = "AVG Trans. Line";
     UsageCategory = Lists;
-
+    ShowFilter = false;
+    SourceTableView = sorting("Receipt No.", "Line No.") order(ascending) where("Process Type" = filter("Retail Pay" | "Query Transaction" | "Cancel Transaction" | "Refund Transaction"));
     layout
     {
         area(content)
@@ -96,11 +97,12 @@ page 50003 "GCash Trans. Line"
                 {
                     ToolTip = 'Specifies the value of the GCash Refund Time field.';
                 }
-                field("GCash Request"; Rec."GCash Request")
+                field("GCash Request"; GCashRequestText)
                 {
                     ToolTip = 'Specifies the value of the GCash Request field.';
+
                 }
-                field("GCash Response"; Rec."GCash Response")
+                field("GCash Response"; GCashResponseText)
                 {
                     ToolTip = 'Specifies the value of the GCash Response field.';
                 }
@@ -132,4 +134,30 @@ page 50003 "GCash Trans. Line"
             }
         }
     }
+    var
+        GCashRequestText: Text;
+        GCashResponseText: Text;
+
+    trigger OnOpenPage()
+    begin
+        CLEAR(GCashRequestText);
+        CLEAR(GCashResponseText);
+    end;
+
+    trigger OnAfterGetRecord()
+    var
+        InStrGCashRequest: InStream;
+        InStrGCashResponse: InStream;
+    begin
+
+        CLEAR(GCashRequestText);
+        CLEAR(GCashResponseText);
+        Rec.CalcFields("GCash Request", "GCash Response");
+        Rec."GCash Request".CreateInStream(InStrGCashRequest);
+        IF Rec."GCash Request".HasValue THEN
+            InStrGCashRequest.Read(GCashRequestText);
+        Rec."GCash Response".CreateInStream(InStrGCashResponse);
+        IF Rec."GCash Response".HasValue THEN
+            InStrGCashResponse.Read(GCashResponseText);
+    end;
 }

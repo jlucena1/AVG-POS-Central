@@ -8,6 +8,7 @@ page 50001 "AllEasy Trans. Line Entry"
     InsertAllowed = false;
     ModifyAllowed = false;
     DeleteAllowed = false;
+    SourceTableView = sorting("Store No.", "POS Terminal No.", "Transaction No.", "Line No.") order(ascending) where("Process Type" = filter("Cash In Inquire" | "Cash In Credit" | "Cash Out Inquire" | "Cash Out Process" | "Pay QR Inquire" | "Pay QR Process"));
     layout
     {
         area(content)

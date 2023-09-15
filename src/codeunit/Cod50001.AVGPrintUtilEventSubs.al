@@ -69,6 +69,7 @@ codeunit 50001 "AVG Print Util Event Subs."
         txtLDesign: Text;
         RefNoMsg: Label ' Ref. No.: %1';
     begin
+
         CLEAR(txtLRefNo);
         AllEasyTransLineEntry.RESET;
         AllEasyTransLineEntry.SETRANGE("Store No.", TransPaymentEntry."Store No.");
@@ -78,6 +79,7 @@ codeunit 50001 "AVG Print Util Event Subs."
         IF NOT AllEasyTransLineEntry.FindFirst() then
             EXIT;
 
+
         IF AllEasyTransLineEntry."Res. PayQR Ref. No." <> '' THEN begin
             CLEAR(txtLValue);
             txtLDesign := ' #L#########################';
@@ -85,31 +87,4 @@ codeunit 50001 "AVG Print Util Event Subs."
             Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue, txtLDesign), false, TRUE, FALSE, false));
         end;
     end;
-
-    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Print Utility", OnAfterPrintPaymInfo, '', false, false)]
-    // local procedure OnAfterPrintPaymInfo(var Sender: Codeunit "LSC POS Print Utility"; var Transaction: Record "LSC Transaction Header"; var PrintBuffer: Record "LSC POS Print Buffer"; var PrintBufferIndex: Integer; var LinesPrinted: Integer; var DSTR1: Text[100]; var Tray: Integer; var TenderType: Record "LSC Tender Type");
-    // var
-    //     AllEasyTransLineEntry: Record "AllEasy Trans. Line Entry";
-    //     AllEasyTypeTransLine: Enum "AllEasy Type Trans. Line";
-    //     txtLRefNo: Text;
-    //     txtLValue: array[10] of Text;
-    //     txtLDesign: Text;
-    //     RefNoMsg: Label ' Ref. No.: %1';
-    // begin
-    //     CLEAR(txtLRefNo);
-    //     AllEasyTransLineEntry.RESET;
-    //     AllEasyTransLineEntry.SETRANGE("Store No.", Transaction."Store No.");
-    //     AllEasyTransLineEntry.SETRANGE("POS Terminal No.", Transaction."POS Terminal No.");
-    //     AllEasyTransLineEntry.SETRANGE("Transaction No.", Transaction."Transaction No.");
-    //     AllEasyTransLineEntry.SETRANGE("AllEasy Process Type", AllEasyTransLineEntry."AllEasy Process Type"::"Pay QR Process");
-    //     IF NOT AllEasyTransLineEntry.FindFirst() then
-    //         EXIT;
-
-    //     IF AllEasyTransLineEntry."Res. PayQR Ref. No." <> '' THEN begin
-    //         CLEAR(txtLValue);
-    //         txtLDesign := ' #L#########################';
-    //         txtLValue[1] := StrSubstNo(RefNoMsg, AllEasyTransLineEntry."Res. PayQR Ref. No.");
-    //         Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue, txtLDesign), false, TRUE, FALSE, false));
-    //     end;
-    // end;
 }

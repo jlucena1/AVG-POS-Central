@@ -269,11 +269,6 @@ tableextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal"
             Caption = 'Shop Name';
             DataClassification = CustomerContent;
         }
-        field(50148; "Wait Reponse (Minutes)"; Integer)
-        {
-            Caption = 'Wait Reponse (Minutes)';
-            DataClassification = CustomerContent;
-        }
         field(50149; "HeartBeat Check Endpoint"; Text[50])
         {
             Caption = 'HeartBeat Check Endpoint';

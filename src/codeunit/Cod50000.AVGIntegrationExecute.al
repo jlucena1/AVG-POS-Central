@@ -3,25 +3,32 @@ codeunit 50000 "AVG Integration Execute"
     SingleInstance = true;
     TableNo = "LSC POS Menu Line";
 
+
     var
-        GlobalRec: Record "LSC POS Menu Line";
-        Store: Record "LSC Store";
-        POSTerminal: Record "LSC POS Terminal";
-        FunctionalityProfile: Record "LSC POS Func. Profile";
+
+        LSCGlobalRec: Record "LSC POS Menu Line";
+        LSCStore: Record "LSC Store";
+        LSCPOSTerminal: Record "LSC POS Terminal";
+        LSCFunctionalityProfile: Record "LSC POS Func. Profile";
+        LSCPOSTransLineRec: Record "LSC POS Trans. Line";
         POSTransactionCU: Codeunit "LSC POS Transaction";
-        POSGui: Codeunit "LSC POS GUI";
-        POSSession: Codeunit "LSC POS Session";
+        LSCPOSGui: Codeunit "LSC POS GUI";
+        LSCPOSSession: Codeunit "LSC POS Session";
         AVGFunctions: Codeunit "AVG Functions";
         CashInAmountMsg: Label 'Cash In Amount';
         CashOutRefNoMsg: Label 'Cash Out Reference No.';
         PayQRCodeAmountMsg: Label 'Pay QR Amount';
+        GCashAmountMsg: Label 'GCash Amount';
+        GCashCancelAcqID: Label 'GCash Cancel Aqcuirement ID';
 
     trigger OnRun()
     begin
-        GlobalRec := Rec;
-        POSTerminal.GET(POSSession.TerminalNo());
-        Store.GET(POSTerminal."Store No.");
-        FunctionalityProfile.GET(POSSession.FunctionalityProfileID());
+
+        LSCGlobalRec := Rec;
+        LSCPOSTerminal.GET(LSCPOSSession.TerminalNo());
+        LSCStore.GET(LSCPOSTerminal."Store No.");
+        LSCFunctionalityProfile.GET(LSCPOSSession.FunctionalityProfileID());
+        IF LSCPOSTransLineRec.GET(LSCGlobalRec."Current-RECEIPT", LSCGlobalRec."Current-LINE") THEN;
         CASE Rec.Command of
             'ALLEASYCASHIN':
                 AllEasyCashInEx();
@@ -38,12 +45,12 @@ codeunit 50000 "AVG Integration Execute"
             'GCASHREFUND':
                 GCashRefundEx();
         END;
-        Rec := GlobalRec;
+        Rec := LSCGlobalRec;
     end;
 
     local procedure AllEasyCashInEx()
     begin
-        IF not AVGFunctions.InitializeAllEasy(1, POSTerminal) then
+        IF not AVGFunctions.InitializeAllEasy(1, LSCPOSTerminal) then
             EXIT;
 
         POSTransactionCU.OpenNumericKeyboard(CashInAmountMsg, 0, '', 50100);
@@ -52,16 +59,16 @@ codeunit 50000 "AVG Integration Execute"
 
     local procedure AllEasyCashOutEx()
     begin
-        IF not AVGFunctions.InitializeAllEasy(3, POSTerminal) then
+        IF not AVGFunctions.InitializeAllEasy(3, LSCPOSTerminal) then
             EXIT;
 
-        POSGui.OpenAlphabeticKeyboard(CashOutRefNoMsg, '', FALSE, '#CASHOUTREFNO', 50);
+        LSCPOSGui.OpenAlphabeticKeyboard(CashOutRefNoMsg, '', FALSE, '#CASHOUTREFNO', 50);
         EXIT;
     end;
 
     local procedure AllEasyPayQREx()
     begin
-        IF not AVGFunctions.InitializeAllEasy(5, POSTerminal) then
+        IF not AVGFunctions.InitializeAllEasy(5, LSCPOSTerminal) then
             EXIT;
 
         POSTransactionCU.OpenNumericKeyboard(PayQRCodeAmountMsg, 0, '', 50102);
@@ -70,27 +77,43 @@ codeunit 50000 "AVG Integration Execute"
 
     local procedure GCashHeartBeatCheckEx()
     begin
-        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+        IF NOT AVGFunctions.InitializeGCash(7, LSCPOSTerminal, LSCGlobalRec) then
+            EXIT;
+
+        AVGFunctions.GCashHeartBeatCheck(LSCPOSTerminal);
     end;
 
     local procedure GCashPayEx()
     begin
-        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+        IF NOT AVGFunctions.InitializeGCash(8, LSCPOSTerminal, LSCGlobalRec) then
+            EXIT;
+
+        POSTransactionCU.OpenNumericKeyboard(GCashAmountMsg, 0, '', 50103);
+        EXIT;
+
     end;
 
     local procedure GCashQueryEx()
     begin
-        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+        IF NOT AVGFunctions.InitializeGCash(9, LSCPOSTerminal, LSCGlobalRec) then
+            EXIT;
+        // AVGFunctions.GCashHeartBeatCheck(POSTerminal);
     end;
 
     local procedure GCashCancelEx()
     begin
-        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+        IF NOT AVGFunctions.InitializeGCash(10, LSCPOSTerminal, LSCGlobalRec) then
+            EXIT;
+
+        LSCPOSGui.OpenAlphabeticKeyboard(GCashCancelAcqID, '', FALSE, '#GCASHCANCEL', 64);
+        EXIT;
     end;
 
     local procedure GCashRefundEx()
     begin
-        AVGFunctions.GCashHeartBeatCheck(POSTerminal);
+        IF NOT AVGFunctions.InitializeGCash(11, LSCPOSTerminal, LSCGlobalRec) then
+            EXIT;
+        // AVGFunctions.GCashHeartBeatCheck(POSTerminal);
     end;
 
 }

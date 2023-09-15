@@ -314,11 +314,6 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
                         ApplicationArea = All;
                         ToolTip = 'Specifies the value of the GCash Reason Code field.';
                     }
-                    field("Wait Reponse (Minutes)"; Rec."Wait Reponse (Minutes)")
-                    {
-                        ApplicationArea = All;
-                        ToolTip = 'Specifies the value of the Wait Reponse (Minutes) field.';
-                    }
                 }
             }
         }

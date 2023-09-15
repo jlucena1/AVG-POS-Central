@@ -459,113 +459,88 @@ codeunit 50002 "AVG Functions"
         AllEasyTransLine.Insert();
     end;
 
-    procedure InitializeGCash(pRecPOSTerminal: Record "LSC POS Terminal"): Boolean
+    procedure InitializeGCash(pIntGCashAPITrigger: Integer; pRecPOSTerminal: Record "LSC POS Terminal"; pLSCGlobalRec: Record "LSC POS Menu Line"): Boolean
     var
         bolOK: Boolean;
+        GCashTransType: Enum "AVG Type Trans. Line";
+        LSCPOSTransactionRec: Record "LSC POS Transaction";
+        GCashErrMsg: Label 'GCash Pay is not Allowed for Return.\Please Try Again.';
+
     begin
+        LSCPOSTransactionRec.Get(pLSCGlobalRec."Current-RECEIPT");
+        IF LSCPOSTransactionRec."Sale Is Return Sale" THEN BEGIN
+            AVGPOSFunctions.AVGPOSErrorMessage(GCashErrMsg);
+            EXIT(FALSE);
+        END;
+
         CLEAR(bolOK);
+        bolOK := FALSE;
         pRecPOSTerminal.CalcFields("GCash Private Key", "GCash Public Key");
         bolOK := (pRecPOSTerminal."Enable GCash Pay") AND
-                (pRecPOSTerminal."GCash URL" <> '') AND
-                (pRecPOSTerminal."GCash Merchant ID" <> '') AND
-                (pRecPOSTerminal."GCash Client ID" <> '') AND
-                (pRecPOSTerminal."GCash Client Secret" <> '') AND
+                (pRecPOSTerminal."Shop ID" <> '') AND
+                (pRecPOSTerminal."Shop Name" <> '') AND
+                (pRecPOSTerminal."GCash Tender Type" <> '') AND
+                (TenderType.Get(pRecPOSTerminal."Store No.", pRecPOSTerminal."GCash Tender Type")) AND
                 (pRecPOSTerminal."GCash Private Key".HasValue) AND
                 (pRecPOSTerminal."GCash Public Key".HasValue) AND
-                (pRecPOSTerminal."GCash Product Code" <> '');
-    end;
-
-    local procedure InsertIntoGCashTransLine(pGCashProcessType: Enum "AVG Type Trans. Line"; pAutCode: Text; pRequest: Text; pResponse: Text)
-    var
-        OutStrGCashReq: OutStream;
-        OutStrGCashRes: OutStream;
-        GCashTransLine: Record "AVG Trans. Line";
-        GCashTransLine2: Record "AVG Trans. Line";
-        intLLineNo: Integer;
-
-    begin
-        intLLineNo := 0;
-        IF NOT GCashTransLine2.RecordLevelLocking then
-            GCashTransLine2.LockTable(TRUE, TRUE);
-
-        GCashTransLine2.RESET;
-        GCashTransLine2.SetCurrentKey("Receipt No.", "Line No.");
-        GCashTransLine2.SETRANGE("Store No.", POSSession.StoreNo());
-        GCashTransLine2.SETRANGE("POS Terminal No.", POSSession.TerminalNo());
-        GCashTransLine2.SETRANGE("Receipt No.", POSTransactionCU.GetReceiptNo());
-        IF GCashTransLine2.FindLast() THEN
-            intLLineNo := GCashTransLine2."Line No." + 10000
-        else
-            intLLineNo := 10000;
-
-        GCashTransLine.INIT;
-        GCashTransLine."Receipt No." := POSTransactionCU.GetReceiptNo();
-        GCashTransLine."Line No." := intLLineNo;
-        GCashTransLine."Store No." := POSTransactionCU.GetStoreNo();
-        GCashTransLine."POS Terminal No." := POSTransactionCU.GetPOSTerminalNo();
-        GCashTransLine."Trans. Date" := WorkDate();
-        GCashTransLine."Trans. Time" := Time;
-        GCashTransLine."Process Type" := pGCashProcessType;
-        GCashTransLine."Authorization Code" := pAutCode;
-        GCashTransLine."Trans. Line No." := POSTransLineCU.GetCurrentLineNo();
-        case pGCashProcessType of
-            pGCashProcessType::"Retail Pay":
-                begin
-                    GCashTransLine."GCash Create Time" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.createTime');
-                    GCashTransLine."GCash Amount Currency" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.orderAmount.currency');
-                    GCashTransLine."GCash Amount" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.orderAmount.value');
-                    IF EVALUATE(GCashTransLine.Amount, GCashTransLine."GCash Amount") THEN;
-                    GCashTransLine."GCash Paid Time" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.paidTime');
-                end;
-            // pGCashProcessType::"Query Transaction":
-            //     begin
-            //         GCashTransLine."Res. Cash In/Out ID" := AVGHttpFunctions.GetResponseJsonByPathText('res_id');
-            //         GCashTransLine."Res. Cash In/Out Code" := AVGHttpFunctions.GetResponseJsonByPathText('res_code');
-            //         GCashTransLine."Res. Cash In/Out Message" := AVGHttpFunctions.GetResponseJsonByPathText('res_message');
-            //         GCashTransLine."Res. Cash In Ref. No." := AVGHttpFunctions.GetResponseJsonByPathText('res_cashin_ref');
-            //         GCashTransLine."Res. Cash In/Out Mobile No." := AVGHttpFunctions.GetResponseJsonByPathText('res_mobileno');
-            //         IF EVALUATE(GCashTransLine."Res. Cash In/Out Amount", AVGHttpFunctions.GetResponseJsonByPathText('res_amount')) THEN;
-            //         GCashTransLine."Res. Cash In/Out Status" := AVGHttpFunctions.GetResponseJsonByPathText('res_status');
-            //         GCashTransLine."Res. Cash In/Out Date" := AVGHttpFunctions.GetResponseJsonByPathText('res_date');
-            //     end;
-            pGCashProcessType::"Cancel Transaction":
-                GCashTransLine."GCash Cancel Time" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.cancelTime');
-
-            pGCashProcessType::"Refund Transaction":
-                begin
-                    GCashTransLine."GCash Amount Currency" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.refundAmount.currency');
-                    GCashTransLine."GCash Amount" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.refundAmount.value');
-                    IF EVALUATE(GCashTransLine.Amount, GCashTransLine."GCash Amount") THEN;
-                    GCashTransLine."GCash Refund ID" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.refundId');
-                    GCashTransLine."GCash Refund Time" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.refundTime');
-                    GCashTransLine."GCash Request ID" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.requestId');
-                    GCashTransLine."GCash Short Refund ID" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.shortRefundId');
-                end;
+                (pRecPOSTerminal."GCash URL" <> '') AND
+                (pRecPOSTerminal."GCash Client ID" <> '') AND
+                (pRecPOSTerminal."GCash Client Secret" <> '') AND
+                (pRecPOSTerminal."GCash Merchant ID" <> '') AND
+                (pRecPOSTerminal."GCash Product Code" <> '') AND
+                (pRecPOSTerminal."GCash Merchant Terminal ID" <> '') AND
+                (pRecPOSTerminal."GCash Version" <> '') AND
+                (pRecPOSTerminal."GCash AuthCode Type" <> '') AND
+                (pRecPOSTerminal."GCash Terminal Type" <> '') AND
+                (pRecPOSTerminal."GCash Order Terminal Type" <> '') AND
+                (pRecPOSTerminal."GCash Scanner Device ID" <> '') AND
+                (pRecPOSTerminal."GCash Scanner Device IP" <> '') AND
+                (pRecPOSTerminal."GCash Merchant IP" <> '') AND
+                (pRecPOSTerminal."GCash Client IP" <> '') AND
+                (pRecPOSTerminal."GCash Order Title" <> '') AND
+                (pRecPOSTerminal."GCash Reason Code" <> '');
+        IF bolOK THEN begin
+            GCashTransType := "AVG Type Trans. Line".FromInteger(pIntGCashAPITrigger);
+            case GCashTransType of
+                GCashTransType::"HeartBeat Check":
+                    bolOK := pRecPOSTerminal."HeartBeat Check Endpoint" <> '';
+                GCashTransType::"Retail Pay":
+                    bolOK := pRecPOSTerminal."Retail Pay Endpoint" <> '';
+                GCashTransType::"Query Transaction":
+                    bolOK := pRecPOSTerminal."Query Transaction Endpoint" <> '';
+                GCashTransType::"Cancel Transaction":
+                    bolOK := pRecPOSTerminal."Cancel Transaction Endpoint" <> '';
+                GCashTransType::"Refund Transaction":
+                    bolOK := pRecPOSTerminal."Refund Transaction Endpoint" <> '';
+            end;
         end;
-        GCashTransLine."GCash Result CodeId" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.resultInfo.resultCodeId');
-        GCashTransLine."GCash Result Msg" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.resultInfo.resultMsg');
-        GCashTransLine."GCash Result Status" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.resultInfo.resultStatus');
-        GCashTransLine."GCash Result Code" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.resultInfo.resultCode');
-        GCashTransLine."GCash Response Time" := AVGHttpFunctions.GetResponseJsonByPathText('response.head.respTime');
-        GCashTransLine."GCash Acquirement ID" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.acquirementId');
-        GCashTransLine."GCash Transaction ID" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.transactionId');
-        GCashTransLine."GCash Merchant Trans. ID" := AVGHttpFunctions.GetResponseJsonByPathText('response.body.merchantTransId');
-        GCashTransLine."GCash Response Signature" := AVGHttpFunctions.GetResponseJsonByPathText('signature');
-        GCashTransLine."GCash Request".CreateOutStream(OutStrGCashReq);
-        OutStrGCashReq.Write(pRequest);
-        GCashTransLine."GCash Response".CreateOutStream(OutStrGCashRes);
-        OutStrGCashRes.Write(pResponse);
-        GCashTransLine.Insert();
+        EXIT(bolOK);
     end;
 
-    local procedure ValidateGCash()
+
+    procedure ValidateGCashApi(pIntGCashAPITrigger: Integer): Boolean
+    var
+        POSTermLocal: Record "LSC POS Terminal";
+        GCashTransType: Enum "AVG Type Trans. Line";
+        AmountText: Text;
     begin
+        GCashTransType := "AVG Type Trans. Line".FromInteger(pIntGCashAPITrigger);
+        POSTermLocal.Get(POSSession.TerminalNo());
+        CASE GCashTransType of
+            GCashTransType::"Retail Pay":
+                begin
+                    CLEAR(AmountText);
+                    AmountText := AVGPOSSession.GetGCashCurrPayQRAmount();
+                    POSTransactionCU.SetCurrInput(AmountText);
+                    POSTransactionCU.TenderKeyPressed(POSTermLocal."GCash Tender Type");
+                    EXIT(AVGHttpFunctions.GCashRetailPay(POSTermLocal, AVGPOSSession.GetGCashCurrPayQRAmount(), AVGPOSSession.GetCurrGCashPayQRCode()));
+                end;
+            GCashTransType::"Cancel Transaction":
+                EXIT(AVGHttpFunctions.GCashCancel(POSTermLocal, AVGPOSSession.GetCurrGCashCancelAcqID()));
+            GCashTransType::"Refund Transaction":
+                exit(AVGHttpFunctions.GCashRefund(POSTermLocal, AVGPOSSession.GetCurrGCashRefundAmount, AVGPOSSession.GetCurrGCashRefundAcqID()));
 
-    end;
-
-    local procedure ValidateGCashApi()
-    begin
-
+        END;
     end;
 
     procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")

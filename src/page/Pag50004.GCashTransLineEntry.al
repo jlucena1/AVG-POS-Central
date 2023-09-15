@@ -8,6 +8,8 @@ page 50004 "GCash Trans. Line Entry"
     InsertAllowed = false;
     ModifyAllowed = false;
     DeleteAllowed = false;
+    ShowFilter = false;
+    SourceTableView = sorting("Store No.", "POS Terminal No.", "Transaction No.", "Line No.") order(ascending) where("Process Type" = filter("Retail Pay" | "Query Transaction" | "Cancel Transaction" | "Refund Transaction"));
     layout
     {
         area(content)

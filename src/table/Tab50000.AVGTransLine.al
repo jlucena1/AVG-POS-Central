@@ -206,88 +206,91 @@ table 50000 "AVG Trans. Line"
         {
 
         }
-        field(51; "GCash Acquirement ID"; Text[64])
+
+        // Field 51 is for transaction no.
+
+        field(52; "GCash Acquirement ID"; Text[64])
         {
 
         }
-        field(52; "GCash Merchant Trans. ID"; Text[64])
+        field(53; "GCash Merchant Trans. ID"; Text[64])
         {
 
         }
-        field(53; "GCash Transaction ID"; Text[64])
+        field(54; "GCash Transaction ID"; Text[64])
         {
 
         }
-        field(54; "GCash Result Status"; Text[5])
+        field(55; "GCash Result Status"; Text[5])
         {
 
         }
-        field(55; "GCash Result CodeId"; Text[10])
+        field(56; "GCash Result CodeId"; Text[10])
         {
 
         }
-        field(56; "GCash Result Code"; Text[32])
+        field(57; "GCash Result Code"; Text[32])
         {
 
         }
-        field(57; "GCash Result Msg"; Text[60])
+        field(58; "GCash Result Msg"; Text[60])
         {
 
         }
-        field(58; "GCash Request"; Blob)
+        field(59; "GCash Request"; Blob)
         {
 
         }
-        field(59; "GCash Response"; Blob)
+        field(60; "GCash Response"; Blob)
         {
 
         }
 
-        field(60; "GCash Create Time"; Text[20])
+        field(61; "GCash Create Time"; Text[30])
         {
 
         }
-        field(61; "GCash Paid Time"; Text[20])
+        field(62; "GCash Paid Time"; Text[30])
         {
 
         }
-        field(62; "GCash Response Time"; Text[20])
+        field(63; "GCash Response Time"; Text[30])
         {
 
         }
-        field(63; "GCash Amount Currency"; Text[10])
+        field(64; "GCash Amount Currency"; Text[10])
         {
 
         }
-        field(64; "GCash Amount"; Text[30])
+        field(65; "GCash Amount"; Text[30])
         {
 
         }
-        field(65; "GCash Response Signature"; Text[64])
+        field(66; "GCash Response Signature"; Text[350])
         {
 
         }
-        field(66; "GCash Cancel Time"; Text[20])
+        field(67; "GCash Cancel Time"; Text[30])
         {
 
         }
-        field(67; "GCash Refund ID"; Text[32])
+        field(68; "GCash Refund ID"; Text[32])
         {
 
         }
-        field(68; "GCash Refund Time"; Text[20])
+        field(69; "GCash Refund Time"; Text[30])
         {
 
         }
-        field(69; "GCash Request ID"; Text[60])
+        field(70; "GCash Request ID"; Text[60])
         {
 
         }
-        field(70; "GCash Short Refund ID"; Text[20])
+        field(71; "GCash Short Refund ID"; Text[20])
         {
 
         }
-        field(71; "Authorization Code"; Text[80])
+        field(72; "Authorization Code"; Text[80])
         {
 
         }

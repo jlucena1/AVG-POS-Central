@@ -247,15 +247,15 @@ table 50001 "AVG Trans. Line Entry"
 
         }
 
-        field(61; "GCash Create Time"; Text[20])
+        field(61; "GCash Create Time"; Text[30])
         {
 
         }
-        field(62; "GCash Paid Time"; Text[20])
+        field(62; "GCash Paid Time"; Text[30])
         {
 
         }
-        field(63; "GCash Response Time"; Text[20])
+        field(63; "GCash Response Time"; Text[30])
         {
 
         }
@@ -267,11 +267,11 @@ table 50001 "AVG Trans. Line Entry"
         {
 
         }
-        field(66; "GCash Response Signature"; Text[64])
+        field(66; "GCash Response Signature"; Text[350])
         {
 
         }
-        field(67; "GCash Cancel Time"; Text[20])
+        field(67; "GCash Cancel Time"; Text[30])
         {
 
         }
@@ -279,7 +279,7 @@ table 50001 "AVG Trans. Line Entry"
         {
 
         }
-        field(69; "GCash Refund Time"; Text[20])
+        field(69; "GCash Refund Time"; Text[30])
         {
 
         }

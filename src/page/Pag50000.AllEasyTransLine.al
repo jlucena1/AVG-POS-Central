@@ -5,7 +5,8 @@ page 50000 "AllEasy Trans. Line"
     PageType = List;
     SourceTable = "AVG Trans. Line";
     UsageCategory = Lists;
-
+    ShowFilter = false;
+    SourceTableView = sorting("Receipt No.", "Line No.") order(ascending) where("Process Type" = filter("Cash In Inquire" | "Cash In Credit" | "Cash Out Inquire" | "Cash Out Process" | "Pay QR Inquire" | "Pay QR Process"));
     layout
     {
         area(content)

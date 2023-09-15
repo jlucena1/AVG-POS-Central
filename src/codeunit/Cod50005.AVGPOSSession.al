@@ -12,6 +12,12 @@ codeunit 50005 "AVG POS Session"
         CurrCashInAmount: Text;
         CurrCashInMobileNo: Text;
         CurrAuthToken: Text;
+        CurrGCashPayQR: Text;
+        CurrGCashPayQRAmountText: Text;
+        CurrGCashCancelAcqID: Text;
+        CurrGCashRefundAcqID: Text;
+        CurrGCashSelectedInfocode: Text;
+        CurrGCashRefundAmount: Text;
 
     procedure InitAVGSetup()
     begin
@@ -130,5 +136,95 @@ codeunit 50005 "AVG POS Session"
     procedure GetCurrAuthToken(): Text;
     begin
         EXIT(CurrAuthToken);
+    end;
+
+    procedure ClearCurrGCashPayQRCode()
+    begin
+        CurrGCashPayQR := '';
+    end;
+
+    procedure SetCurrGCashPayQRCode(var pTxtGCashPayQRCode: Text)
+    begin
+        CurrGCashPayQR := pTxtGCashPayQRCode;
+    end;
+
+    procedure GetCurrGCashPayQRCode(): Text;
+    begin
+        EXIT(CurrGCashPayQR);
+    end;
+
+    procedure ClearCurrGCashPayQRAmount()
+    begin
+        CurrGCashPayQRAmountText := '';
+    end;
+
+    procedure SetGCashCurrPayQRAmount(var pTxtPayQRAmount: Text)
+    begin
+        CurrGCashPayQRAmountText := pTxtPayQRAmount;
+    end;
+
+    procedure GetGCashCurrPayQRAmount(): Text;
+    begin
+        EXIT(CurrGCashPayQRAmountText);
+    end;
+
+    procedure ClearCurrGCashCancelAcqID()
+    begin
+        CurrGCashCancelAcqID := '';
+    end;
+
+    procedure SetCurrGCashCancelAcqID(var pTxtGCashCancelAcID: Text)
+    begin
+        CurrGCashCancelAcqID := pTxtGCashCancelAcID;
+    end;
+
+    procedure GetCurrGCashCancelAcqID(): Text;
+    begin
+        EXIT(CurrGCashCancelAcqID);
+    end;
+
+    procedure ClearCurrGCashRefundAcqID()
+    begin
+        CurrGCashCancelAcqID := '';
+    end;
+
+    procedure SetCurrGCashRefundAcqID(var pTxtGCashRefundAcqID: Text)
+    begin
+        CurrGCashRefundAmount := pTxtGCashRefundAcqID;
+    end;
+
+    procedure GetCurrGCashRefundAcqID(): Text;
+    begin
+        EXIT(CurrGCashRefundAmount);
+    end;
+
+    procedure ClearCurrGCashSelectedInfocode()
+    begin
+        CurrGCashSelectedInfocode := '';
+    end;
+
+    procedure SetCurrGCashSelectedInfocode(var pTxtGCashSelectedInfocode: Text)
+    begin
+        CurrGCashSelectedInfocode := pTxtGCashSelectedInfocode;
+    end;
+
+    procedure GetCurrGCashSelectedInfocode(): Text;
+    begin
+        EXIT(CurrGCashSelectedInfocode);
+    end;
+
+    procedure ClearCurrGCashRefundAmount()
+    begin
+        CurrGCashRefundAmount := '';
+    end;
+
+    procedure SetCurrGCashRefundAmount(var pTxtGCashRefundAmount: Text)
+    begin
+        CurrGCashRefundAmount := pTxtGCashRefundAmount;
+    end;
+
+    procedure GetCurrGCashRefundAmount(): Text;
+    begin
+        EXIT(CurrGCashRefundAmount);
     end;
 }
