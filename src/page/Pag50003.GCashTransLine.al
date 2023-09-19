@@ -69,6 +69,10 @@ page 50003 "GCash Trans. Line"
                 {
                     ToolTip = 'Specifies the value of the GCash Response Time field.';
                 }
+                field(Amount; Rec.Amount)
+                {
+                    Caption = 'GCash Orig. Amount';
+                }
                 field("GCash Amount"; Rec."GCash Amount")
                 {
                     ToolTip = 'Specifies the value of the GCash Amount field.';
@@ -97,12 +101,12 @@ page 50003 "GCash Trans. Line"
                 {
                     ToolTip = 'Specifies the value of the GCash Refund Time field.';
                 }
-                field("GCash Request"; GCashRequestText)
+                field("GCash Request"; Rec."GCash Request")
                 {
                     ToolTip = 'Specifies the value of the GCash Request field.';
 
                 }
-                field("GCash Response"; GCashResponseText)
+                field("GCash Response"; Rec."GCash Response")
                 {
                     ToolTip = 'Specifies the value of the GCash Response field.';
                 }
@@ -134,30 +138,4 @@ page 50003 "GCash Trans. Line"
             }
         }
     }
-    var
-        GCashRequestText: Text;
-        GCashResponseText: Text;
-
-    trigger OnOpenPage()
-    begin
-        CLEAR(GCashRequestText);
-        CLEAR(GCashResponseText);
-    end;
-
-    trigger OnAfterGetRecord()
-    var
-        InStrGCashRequest: InStream;
-        InStrGCashResponse: InStream;
-    begin
-
-        CLEAR(GCashRequestText);
-        CLEAR(GCashResponseText);
-        Rec.CalcFields("GCash Request", "GCash Response");
-        Rec."GCash Request".CreateInStream(InStrGCashRequest);
-        IF Rec."GCash Request".HasValue THEN
-            InStrGCashRequest.Read(GCashRequestText);
-        Rec."GCash Response".CreateInStream(InStrGCashResponse);
-        IF Rec."GCash Response".HasValue THEN
-            InStrGCashResponse.Read(GCashResponseText);
-    end;
 }

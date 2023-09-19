@@ -3,15 +3,21 @@ codeunit 50002 "AVG Functions"
     SingleInstance = true;
 
     var
+        GlobalPOSMenuLineTemp: Record "LSC POS Menu Line" temporary;
         IncExp: Record "LSC Income/Expense Account";
         TenderType: Record "LSC Tender Type";
         POSSession: Codeunit "LSC POS Session";
-        POSTransactionCU: Codeunit "LSC POS Transaction";
+        LSCPOSTransactionCU: Codeunit "LSC POS Transaction";
         POSTransLineCU: Codeunit "LSC POS Trans. Lines";
         AVGPOSSession: Codeunit "AVG POS Session";
         AVGPOSFunctions: Codeunit "AVG POS Functions";
         AVGHttpFunctions: Codeunit "AVG Http Functions";
         ConnectingToServerMsg: Label 'Connecting to AllEasy Server...';
+
+    procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
+    begin
+        AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
+    end;
 
     procedure InitializeAllEasy(pIntAllEasyAPITrigger: Integer; pRecPOSTerminal: Record "LSC POS Terminal"): Boolean;
     var
@@ -104,19 +110,93 @@ codeunit 50002 "AVG Functions"
 
         if bolOK then BEGIN
             CLEAR(txtLAuthorizeToken);
-            POSTransactionCU.ScreenDisplay(ConnectingToServerMsg);
+            LSCPOSTransactionCU.ScreenDisplay(ConnectingToServerMsg);
             txtLAuthorizeToken := AVGHttpFunctions.ProcessAuthToken(txtLURL, txtLEndpoint, txtLClientID, txtLClientSecret, bolPayQR, txtLHeader1, txtLHeader2);
             AVGPOSSession.ClearCurrAuthToken();
             AVGPOSSession.SetCurrAuthToken(txtLAuthorizeToken);
             bolOK := txtLAuthorizeToken <> '';
-            POSTransactionCU.ScreenDisplay('');
+            LSCPOSTransactionCU.ScreenDisplay('');
         END;
         EXIT(bolOK);
     END;
 
+    procedure InitializeGCash(pIntGCashAPITrigger: Integer; pRecPOSTerminal: Record "LSC POS Terminal"): Boolean
+    var
+        bolOK: Boolean;
+        GCashTransType: Enum "AVG Type Trans. Line";
+    begin
+        CLEAR(bolOK);
+        bolOK := FALSE;
+        pRecPOSTerminal.CalcFields("GCash Private Key", "GCash Public Key");
+        bolOK := (pRecPOSTerminal."Enable GCash Pay") AND
+                (pRecPOSTerminal."Shop ID" <> '') AND
+                (pRecPOSTerminal."Shop Name" <> '') AND
+                (pRecPOSTerminal."GCash Tender Type" <> '') AND
+                (TenderType.Get(pRecPOSTerminal."Store No.", pRecPOSTerminal."GCash Tender Type")) AND
+                (pRecPOSTerminal."GCash Private Key".HasValue) AND
+                (pRecPOSTerminal."GCash Public Key".HasValue) AND
+                (pRecPOSTerminal."GCash URL" <> '') AND
+                (pRecPOSTerminal."GCash Client ID" <> '') AND
+                (pRecPOSTerminal."GCash Client Secret" <> '') AND
+                (pRecPOSTerminal."GCash Merchant ID" <> '') AND
+                (pRecPOSTerminal."GCash Product Code" <> '') AND
+                (pRecPOSTerminal."GCash Merchant Terminal ID" <> '') AND
+                (pRecPOSTerminal."GCash Version" <> '') AND
+                (pRecPOSTerminal."GCash AuthCode Type" <> '') AND
+                (pRecPOSTerminal."GCash Terminal Type" <> '') AND
+                (pRecPOSTerminal."GCash Order Terminal Type" <> '') AND
+                (pRecPOSTerminal."GCash Scanner Device ID" <> '') AND
+                (pRecPOSTerminal."GCash Scanner Device IP" <> '') AND
+                (pRecPOSTerminal."GCash Merchant IP" <> '') AND
+                (pRecPOSTerminal."GCash Client IP" <> '') AND
+                (pRecPOSTerminal."GCash Order Title" <> '') AND
+                (pRecPOSTerminal."GCash Reason Code" <> '');
+        IF bolOK THEN begin
+            GCashTransType := "AVG Type Trans. Line".FromInteger(pIntGCashAPITrigger);
+            case GCashTransType of
+                GCashTransType::"HeartBeat Check":
+                    bolOK := pRecPOSTerminal."HeartBeat Check Endpoint" <> '';
+                GCashTransType::"Retail Pay":
+                    bolOK := pRecPOSTerminal."Retail Pay Endpoint" <> '';
+                GCashTransType::"Query Transaction":
+                    bolOK := pRecPOSTerminal."Query Transaction Endpoint" <> '';
+                GCashTransType::"Cancel Transaction":
+                    bolOK := pRecPOSTerminal."Cancel Transaction Endpoint" <> '';
+                GCashTransType::"Refund Transaction":
+                    bolOK := pRecPOSTerminal."Refund Transaction Endpoint" <> '';
+            end;
+        end;
+        EXIT(bolOK);
+    end;
+
+    // procedure GCashRetailPay(pRecPOSTerminal: Record "LSC POS Terminal")
+    // begin
+    //     AVGHttpFunctions.GCashRetailPay(pRecPOSTerminal, TRUE);
+    // end;
+
+    // procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
+    // begin
+    //     AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
+    // end;
+
+    // procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
+    // begin
+    //     AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
+    // end;
+
+    // procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
+    // begin
+    //     AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
+    // end;
+    Procedure SetGlobalLSCPOSMenuLine(pLSCPOSMenuLine: Record "LSC POS Menu Line")
+    begin
+        GlobalPOSMenuLineTemp.RESET;
+        GlobalPOSMenuLineTemp.DELETEALL;
+        GlobalPOSMenuLineTemp := pLSCPOSMenuLine;
+    end;
+
     procedure ValidateAllEasy(pIntAllEasyAPITrigger: Integer; pDecAmount: Decimal; pTxtAmount: Text; pTxtCORefNo: Text; pTxtMobileNo: text): Boolean;
     var
-        txtLRefNo: Text;
         LSCIncExpLocal: Record "LSC Income/Expense Account";
         LSCTenderTypeLocal: Record "LSC Tender Type";
         POSTermLocal: Record "LSC POS Terminal";
@@ -191,7 +271,7 @@ codeunit 50002 "AVG Functions"
                         EXIT(FALSE);
                     end;
 
-                    IF decLAmount > POSTransactionCU.GetOutstandingBalance() THEN begin
+                    IF decLAmount > LSCPOSTransactionCU.GetOutstandingBalance() THEN begin
                         AVGPOSFunctions.AVGPOSErrorMessage(PayQRAmountErrMsg);
                         EXIT(FALSE);
                     end;
@@ -202,11 +282,8 @@ codeunit 50002 "AVG Functions"
 
     procedure ValidateAllEasyApi(pIntAllEasyAPITrigger: Integer; pDecAmount: Decimal; pTxtAmount: Text; pTxtMobileNo: Text; pTxtCORefNo: Text; pRecPOSTerminal: Record "LSC POS Terminal"): Boolean;
     var
-        txtLURL: Text;
-        txtLEndpoint: Text;
         txtLRequestData: Text;
         AllEasyAPITrigger: Enum "AVG Type Trans. Line";
-        txtLResponseData: Text;
         txtLScreenDisplayValue: Text;
         TextValidCI: Label 'Validating AllEasy Cash In...';
         TextSaveCI: Label 'Saving AllEasy Cash In Response...';
@@ -220,9 +297,6 @@ codeunit 50002 "AVG Functions"
         txtLValidationMessage: Text;
         txtLRefNo: Text;
         txtLAmount: Text;
-        decLAmount: Decimal;
-        IncExpLocal: Record "LSC Income/Expense Account";
-        AVGPOSFunctions: Codeunit "AVG POS Functions";
     begin
 
         CLEAR(txtLRefNo);
@@ -238,7 +312,7 @@ codeunit 50002 "AVG Functions"
         CASE AllEasyAPITrigger of
             AllEasyAPITrigger::"Cash In Inquire":
                 begin
-                    POSTransactionCU.ScreenDisplay(TextValidCI);
+                    LSCPOSTransactionCU.ScreenDisplay(TextValidCI);
                     IF AVGHttpFunctions.ProcessCashInInquire(
                         pRecPOSTerminal."AE Cash In URL",
                         pRecPOSTerminal."AE Cash In Endpoint Inquire",
@@ -248,8 +322,8 @@ codeunit 50002 "AVG Functions"
                         pRecPOSTerminal."No.",
                         POSSession.StaffID())
                      then begin
-                        POSTransactionCU.SetCurrInput(pTxtAmount);
-                        POSTransactionCU.IncExpPressed(pRecPOSTerminal."AE Cash In Inc. Acc.");
+                        LSCPOSTransactionCU.SetCurrInput(pTxtAmount);
+                        LSCPOSTransactionCU.IncExpPressed(pRecPOSTerminal."AE Cash In Inc. Acc.");
                         txtLScreenDisplayValue := TextSaveCI;
                         InsertIntoAllEasyTransLine(AllEasyAPITrigger, pDecAmount);
                         EXIT(TRUE);
@@ -258,7 +332,7 @@ codeunit 50002 "AVG Functions"
                 end;
             AllEasyAPITrigger::"Cash In Credit":
                 begin
-                    POSTransactionCU.ScreenDisplay(TextPostCI);
+                    LSCPOSTransactionCU.ScreenDisplay(TextPostCI);
                     IF AVGHttpFunctions.ProcessCashInCredit(
                         pRecPOSTerminal."AE Cash In URL",
                         pRecPOSTerminal."AE Cash In Endpoint Credit",
@@ -276,7 +350,7 @@ codeunit 50002 "AVG Functions"
                 end;
             AllEasyAPITrigger::"Cash Out Inquire":
                 begin
-                    POSTransactionCU.ScreenDisplay(TextValidCO);
+                    LSCPOSTransactionCU.ScreenDisplay(TextValidCO);
                     IF AVGHttpFunctions.ProcessCashOutInquire(
                         pRecPOSTerminal."AE Cash Out URL",
                         pRecPOSTerminal."AE Cash Out Endpoint Inquire",
@@ -285,8 +359,8 @@ codeunit 50002 "AVG Functions"
                         pRecPOSTerminal."No.",
                         POSSession.StaffID(), pTxtAmount, pRecPOSTerminal)
                     then begin
-                        POSTransactionCU.SetCurrInput(pTxtAmount);
-                        POSTransactionCU.IncExpPressed(pRecPOSTerminal."AE Cash Out Exp. Acc.");
+                        LSCPOSTransactionCU.SetCurrInput(pTxtAmount);
+                        LSCPOSTransactionCU.IncExpPressed(pRecPOSTerminal."AE Cash Out Exp. Acc.");
                         txtLScreenDisplayValue := TextSaveCO;
                         InsertIntoAllEasyTransLine(AllEasyAPITrigger, pDecAmount);
                         EXIT(TRUE);
@@ -295,7 +369,7 @@ codeunit 50002 "AVG Functions"
                 end;
             AllEasyAPITrigger::"Cash Out Process":
                 begin
-                    POSTransactionCU.ScreenDisplay(TextPostCO);
+                    LSCPOSTransactionCU.ScreenDisplay(TextPostCO);
                     if AVGHttpFunctions.ProcessCashOutProcess(
                         pRecPOSTerminal."AE Cash Out URL",
                         pRecPOSTerminal."AE Cash Out Endpoint Process",
@@ -313,7 +387,7 @@ codeunit 50002 "AVG Functions"
                 end;
             AllEasyAPITrigger::"Pay QR Inquire":
                 begin
-                    POSTransactionCU.ScreenDisplay(TextValidPAYQR);
+                    LSCPOSTransactionCU.ScreenDisplay(TextValidPAYQR);
                     txtLRequestData :=
                         pRecPOSTerminal."AE Pay QR URL" +
                         pRecPOSTerminal."AE Pay QR Endpoint Inquire" + '/' +
@@ -321,8 +395,8 @@ codeunit 50002 "AVG Functions"
                     IF AVGHttpFunctions.ProcessPayQRInquire(txtLRequestData) THEN begin
                         InsertIntoAllEasyTransLine(AllEasyAPITrigger, pDecAmount);
                         pTxtAmount := AVGPOSSession.GetCurrPayQRAmount();
-                        POSTransactionCU.SetCurrInput(pTxtAmount);
-                        POSTransactionCU.TenderKeyPressed(pRecPOSTerminal."AE Pay QR Tender Type");
+                        LSCPOSTransactionCU.SetCurrInput(pTxtAmount);
+                        LSCPOSTransactionCU.TenderKeyPressed(pRecPOSTerminal."AE Pay QR Tender Type");
                         txtLScreenDisplayValue := TextSavePAYQR;
                         EXIT(TRUE);
                     end else
@@ -330,7 +404,7 @@ codeunit 50002 "AVG Functions"
                 end;
             AllEasyAPITrigger::"Pay QR Process":
                 begin
-                    POSTransactionCU.ScreenDisplay(TextPostPAYQR);
+                    LSCPOSTransactionCU.ScreenDisplay(TextPostPAYQR);
                     txtLRequestData :=
                         pRecPOSTerminal."AE Pay QR URL" +
                         pRecPOSTerminal."AE Pay QR Endpoint Process" + '?code=' +
@@ -344,6 +418,46 @@ codeunit 50002 "AVG Functions"
                 end;
         end;
     END;
+
+    procedure ValidateGCashApi(pIntGCashAPITrigger: Integer): Boolean
+    var
+        POSTermLocal: Record "LSC POS Terminal";
+        GCashTransType: Enum "AVG Type Trans. Line";
+        AmountText: Text;
+        bolResult: Boolean;
+    begin
+        IF NOT ValidatedGCash(pIntGCashAPITrigger) then
+            EXIT(false);
+
+        CLEAR(bolResult);
+        GCashTransType := "AVG Type Trans. Line".FromInteger(pIntGCashAPITrigger);
+        POSTermLocal.Get(POSSession.TerminalNo());
+        CASE GCashTransType of
+            GCashTransType::"Retail Pay":
+                begin
+                    CLEAR(AmountText);
+                    AmountText := AVGPOSSession.GetGCashCurrPayQRAmount();
+                    bolResult := AVGHttpFunctions.GCashRetailPay(POSTermLocal, AmountText, AVGPOSSession.GetCurrGCashPayQRCode());
+                    IF bolResult THEN BEGIN
+                        LSCPOSTransactionCU.SetCurrInput(AmountText);
+                        LSCPOSTransactionCU.TenderKeyPressed(POSTermLocal."GCash Tender Type");
+                    END;
+                end;
+            GCashTransType::"Cancel Transaction":
+                bolResult := AVGHttpFunctions.GCashCancel(POSTermLocal, AVGPOSSession.GetCurrGCashCancelAcqID());
+            GCashTransType::"Refund Transaction":
+                begin
+                    CLEAR(AmountText);
+                    AmountText := AVGPOSSession.GetCurrGCashRefundAmount();
+                    bolResult := AVGHttpFunctions.GCashRefund(POSTermLocal, AVGPOSSession.GetCurrGCashRefundAmount, AVGPOSSession.GetCurrGCashRefundAcqID());
+                    IF bolResult THEN BEGIN
+                        LSCPOSTransactionCU.SetCurrInput(AmountText);
+                        LSCPOSTransactionCU.TenderKeyPressed(POSTermLocal."GCash Tender Type");
+                    end;
+                END;
+        end;
+        EXIT(bolResult);
+    end;
 
     local procedure InsertIntoAllEasyTransLine(pAllEasyProcessType: Enum "AVG Type Trans. Line"; pDecAmount: Decimal)
     var
@@ -359,17 +473,17 @@ codeunit 50002 "AVG Functions"
         AllEasyTransLine2.SetCurrentKey("Receipt No.", "Line No.");
         AllEasyTransLine2.SETRANGE("Store No.", POSSession.StoreNo());
         AllEasyTransLine2.SETRANGE("POS Terminal No.", POSSession.TerminalNo());
-        AllEasyTransLine2.SETRANGE("Receipt No.", POSTransactionCU.GetReceiptNo());
+        AllEasyTransLine2.SETRANGE("Receipt No.", LSCPOSTransactionCU.GetReceiptNo());
         IF AllEasyTransLine2.FindLast() THEN
             intLLineNo := AllEasyTransLine2."Line No." + 10000
         else
             intLLineNo := 10000;
 
         AllEasyTransLine.INIT;
-        AllEasyTransLine."Receipt No." := POSTransactionCU.GetReceiptNo();
+        AllEasyTransLine."Receipt No." := LSCPOSTransactionCU.GetReceiptNo();
         AllEasyTransLine."Line No." := intLLineNo;
-        AllEasyTransLine."Store No." := POSTransactionCU.GetStoreNo();
-        AllEasyTransLine."POS Terminal No." := POSTransactionCU.GetPOSTerminalNo();
+        AllEasyTransLine."Store No." := LSCPOSTransactionCU.GetStoreNo();
+        AllEasyTransLine."POS Terminal No." := LSCPOSTransactionCU.GetPOSTerminalNo();
         AllEasyTransLine."Trans. Date" := WorkDate();
         AllEasyTransLine."Trans. Time" := Time;
         AllEasyTransLine."Process Type" := pAllEasyProcessType;
@@ -459,112 +573,69 @@ codeunit 50002 "AVG Functions"
         AllEasyTransLine.Insert();
     end;
 
-    procedure InitializeGCash(pIntGCashAPITrigger: Integer; pRecPOSTerminal: Record "LSC POS Terminal"; pLSCGlobalRec: Record "LSC POS Menu Line"): Boolean
+    local procedure ValidatedGCash(pIntGCashAPITrigger: Integer): Boolean;
     var
-        bolOK: Boolean;
-        GCashTransType: Enum "AVG Type Trans. Line";
         LSCPOSTransactionRec: Record "LSC POS Transaction";
-        GCashErrMsg: Label 'GCash Pay is not Allowed for Return.\Please Try Again.';
-
-    begin
-        LSCPOSTransactionRec.Get(pLSCGlobalRec."Current-RECEIPT");
-        IF LSCPOSTransactionRec."Sale Is Return Sale" THEN BEGIN
-            AVGPOSFunctions.AVGPOSErrorMessage(GCashErrMsg);
-            EXIT(FALSE);
-        END;
-
-        CLEAR(bolOK);
-        bolOK := FALSE;
-        pRecPOSTerminal.CalcFields("GCash Private Key", "GCash Public Key");
-        bolOK := (pRecPOSTerminal."Enable GCash Pay") AND
-                (pRecPOSTerminal."Shop ID" <> '') AND
-                (pRecPOSTerminal."Shop Name" <> '') AND
-                (pRecPOSTerminal."GCash Tender Type" <> '') AND
-                (TenderType.Get(pRecPOSTerminal."Store No.", pRecPOSTerminal."GCash Tender Type")) AND
-                (pRecPOSTerminal."GCash Private Key".HasValue) AND
-                (pRecPOSTerminal."GCash Public Key".HasValue) AND
-                (pRecPOSTerminal."GCash URL" <> '') AND
-                (pRecPOSTerminal."GCash Client ID" <> '') AND
-                (pRecPOSTerminal."GCash Client Secret" <> '') AND
-                (pRecPOSTerminal."GCash Merchant ID" <> '') AND
-                (pRecPOSTerminal."GCash Product Code" <> '') AND
-                (pRecPOSTerminal."GCash Merchant Terminal ID" <> '') AND
-                (pRecPOSTerminal."GCash Version" <> '') AND
-                (pRecPOSTerminal."GCash AuthCode Type" <> '') AND
-                (pRecPOSTerminal."GCash Terminal Type" <> '') AND
-                (pRecPOSTerminal."GCash Order Terminal Type" <> '') AND
-                (pRecPOSTerminal."GCash Scanner Device ID" <> '') AND
-                (pRecPOSTerminal."GCash Scanner Device IP" <> '') AND
-                (pRecPOSTerminal."GCash Merchant IP" <> '') AND
-                (pRecPOSTerminal."GCash Client IP" <> '') AND
-                (pRecPOSTerminal."GCash Order Title" <> '') AND
-                (pRecPOSTerminal."GCash Reason Code" <> '');
-        IF bolOK THEN begin
-            GCashTransType := "AVG Type Trans. Line".FromInteger(pIntGCashAPITrigger);
-            case GCashTransType of
-                GCashTransType::"HeartBeat Check":
-                    bolOK := pRecPOSTerminal."HeartBeat Check Endpoint" <> '';
-                GCashTransType::"Retail Pay":
-                    bolOK := pRecPOSTerminal."Retail Pay Endpoint" <> '';
-                GCashTransType::"Query Transaction":
-                    bolOK := pRecPOSTerminal."Query Transaction Endpoint" <> '';
-                GCashTransType::"Cancel Transaction":
-                    bolOK := pRecPOSTerminal."Cancel Transaction Endpoint" <> '';
-                GCashTransType::"Refund Transaction":
-                    bolOK := pRecPOSTerminal."Refund Transaction Endpoint" <> '';
-            end;
-        end;
-        EXIT(bolOK);
-    end;
-
-
-    procedure ValidateGCashApi(pIntGCashAPITrigger: Integer): Boolean
-    var
-        POSTermLocal: Record "LSC POS Terminal";
+        LSCInfocodeRec: Record "LSC Infocode";
+        GCashTransLineEntryRec: Record "AVG Trans. Line Entry";
+        LSCPOSTerminalRec: Record "LSC POS Terminal";
+        RefundAmount: Text;
         GCashTransType: Enum "AVG Type Trans. Line";
-        AmountText: Text;
+        GCashRetailPayErrMsg: Label 'GCash Pay is not Allowed for Return Transaction.\Please Try Again.';
+        GCashRefundErrMsg: Label 'GCash Refund is not Allowed for Sales Transaction.\Please Try Again.';
     begin
+        IF NOT LSCPOSTransactionRec.Get(LSCPOSTransactionCU.GetReceiptNo()) then
+            EXIT;
+
+        IF NOT LSCPOSTerminalRec.Get(LSCPOSTransactionRec."POS Terminal No.") THEN
+            EXIT;
+
+        IF NOT InitializeGCash(pIntGCashAPITrigger, LSCPOSTerminalRec) then
+            EXIT;
+
         GCashTransType := "AVG Type Trans. Line".FromInteger(pIntGCashAPITrigger);
-        POSTermLocal.Get(POSSession.TerminalNo());
         CASE GCashTransType of
             GCashTransType::"Retail Pay":
                 begin
-                    CLEAR(AmountText);
-                    AmountText := AVGPOSSession.GetGCashCurrPayQRAmount();
-                    POSTransactionCU.SetCurrInput(AmountText);
-                    POSTransactionCU.TenderKeyPressed(POSTermLocal."GCash Tender Type");
-                    EXIT(AVGHttpFunctions.GCashRetailPay(POSTermLocal, AVGPOSSession.GetGCashCurrPayQRAmount(), AVGPOSSession.GetCurrGCashPayQRCode()));
+                    IF LSCPOSTransactionRec."Sale Is Return Sale" THEN BEGIN
+                        AVGPOSFunctions.AVGPOSErrorMessage(GCashRetailPayErrMsg);
+                        exit(false);
+                    END ELSE
+                        exit(true);
                 end;
             GCashTransType::"Cancel Transaction":
-                EXIT(AVGHttpFunctions.GCashCancel(POSTermLocal, AVGPOSSession.GetCurrGCashCancelAcqID()));
+                begin
+                    exit(true);
+                end;
             GCashTransType::"Refund Transaction":
-                exit(AVGHttpFunctions.GCashRefund(POSTermLocal, AVGPOSSession.GetCurrGCashRefundAmount, AVGPOSSession.GetCurrGCashRefundAcqID()));
+                begin
+                    IF NOT LSCPOSTransactionRec."Sale Is Return Sale" THEN BEGIN
+                        AVGPOSFunctions.AVGPOSErrorMessage(GCashRefundErrMsg);
+                        exit(false);
+                    end else begin
+                        IF LSCPOSTerminalRec."GCash Reason Code" = '' then
+                            exit(false);
 
-        END;
+                        IF not LSCInfocodeRec.Get(LSCPOSTerminalRec."GCash Reason Code") then
+                            exit(false);
+
+                        GCashTransLineEntryRec.RESET;
+                        GCashTransLineEntryRec.SETRANGE("Store No.", LSCPOSTransactionRec."Retrieved from Store No.");
+                        GCashTransLineEntryRec.SETRANGE("POS Terminal No.", LSCPOSTransactionRec."Retrieved from POS Term. No.");
+                        GCashTransLineEntryRec.SETRANGE("Transaction No.", LSCPOSTransactionRec."Retrieved from Trans. No.");
+                        GCashTransLineEntryRec.SETRANGE("Process Type", GCashTransLineEntryRec."Process Type"::"Retail Pay");
+                        IF NOT GCashTransLineEntryRec.FINDFIRST then
+                            exit(false);
+
+                        CLEAR(RefundAmount);
+                        RefundAmount := FORMAT(GCashTransLineEntryRec.Amount);
+                        AVGPOSSession.ClearCurrGCashRefundAmount();
+                        AVGPOSSession.SetCurrGCashRefundAmount(RefundAmount);
+                        AVGPOSSession.ClearCurrGCashRefundAcqID();
+                        AVGPOSSession.SetCurrGCashRefundAcqID(GCashTransLineEntryRec."GCash Acquirement ID");
+                        exit(true);
+                    end;
+                end;
+        end;
     end;
-
-    procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
-    begin
-        AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
-    end;
-
-    // procedure GCashRetailPay(pRecPOSTerminal: Record "LSC POS Terminal")
-    // begin
-    //     AVGHttpFunctions.GCashRetailPay(pRecPOSTerminal, TRUE);
-    // end;
-
-    // procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
-    // begin
-    //     AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
-    // end;
-
-    // procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
-    // begin
-    //     AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
-    // end;
-
-    // procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
-    // begin
-    //     AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
-    // end;
 }

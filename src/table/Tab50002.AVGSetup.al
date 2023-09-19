@@ -23,15 +23,19 @@ table 50002 "AVG Setup"
         }
         field(5; "Date Initialized"; DateTime)
         {
-            DataClassification = ToBeClassified;
+            DataClassification = CustomerContent;
         }
         field(6; "Initialized By"; Text[100])
         {
-            DataClassification = ToBeClassified;
+            DataClassification = CustomerContent;
         }
         field(7; "Error Prompt Messages Format"; Enum "AVG Error Prompt Messages")
         {
-            DataClassification = ToBeClassified;
+            DataClassification = CustomerContent;
+        }
+        field(9; "Hide Values on Keyboard"; Boolean)
+        {
+            DataClassification = CustomerContent;
         }
     }
     keys

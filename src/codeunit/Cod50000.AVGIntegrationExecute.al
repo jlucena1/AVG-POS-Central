@@ -3,7 +3,6 @@ codeunit 50000 "AVG Integration Execute"
     SingleInstance = true;
     TableNo = "LSC POS Menu Line";
 
-
     var
 
         LSCGlobalRec: Record "LSC POS Menu Line";
@@ -14,6 +13,7 @@ codeunit 50000 "AVG Integration Execute"
         POSTransactionCU: Codeunit "LSC POS Transaction";
         LSCPOSGui: Codeunit "LSC POS GUI";
         LSCPOSSession: Codeunit "LSC POS Session";
+        AVGPOSSession: Codeunit "AVG POS Session";
         AVGFunctions: Codeunit "AVG Functions";
         CashInAmountMsg: Label 'Cash In Amount';
         CashOutRefNoMsg: Label 'Cash Out Reference No.';
@@ -29,6 +29,7 @@ codeunit 50000 "AVG Integration Execute"
         LSCStore.GET(LSCPOSTerminal."Store No.");
         LSCFunctionalityProfile.GET(LSCPOSSession.FunctionalityProfileID());
         IF LSCPOSTransLineRec.GET(LSCGlobalRec."Current-RECEIPT", LSCGlobalRec."Current-LINE") THEN;
+        AVGFunctions.SetGlobalLSCPOSMenuLine(LSCGlobalRec);
         CASE Rec.Command of
             'ALLEASYCASHIN':
                 AllEasyCashInEx();
@@ -62,7 +63,7 @@ codeunit 50000 "AVG Integration Execute"
         IF not AVGFunctions.InitializeAllEasy(3, LSCPOSTerminal) then
             EXIT;
 
-        LSCPOSGui.OpenAlphabeticKeyboard(CashOutRefNoMsg, '', FALSE, '#CASHOUTREFNO', 50);
+        LSCPOSGui.OpenAlphabeticKeyboard(CashOutRefNoMsg, '', AVGPOSSession.GetHideKeybValues, '#CASHOUTREFNO', 50);
         EXIT;
     end;
 
@@ -75,9 +76,18 @@ codeunit 50000 "AVG Integration Execute"
         EXIT;
     end;
 
+    local procedure GCashCancelEx()
+    begin
+        IF NOT AVGFunctions.InitializeGCash(10, LSCPOSTerminal) then
+            EXIT;
+
+        LSCPOSGui.OpenAlphabeticKeyboard(GCashCancelAcqID, '', AVGPOSSession.GetHideKeybValues, '#GCASHCANCEL', 64);
+        EXIT;
+    end;
+
     local procedure GCashHeartBeatCheckEx()
     begin
-        IF NOT AVGFunctions.InitializeGCash(7, LSCPOSTerminal, LSCGlobalRec) then
+        IF NOT AVGFunctions.InitializeGCash(7, LSCPOSTerminal) then
             EXIT;
 
         AVGFunctions.GCashHeartBeatCheck(LSCPOSTerminal);
@@ -85,35 +95,23 @@ codeunit 50000 "AVG Integration Execute"
 
     local procedure GCashPayEx()
     begin
-        IF NOT AVGFunctions.InitializeGCash(8, LSCPOSTerminal, LSCGlobalRec) then
+        IF NOT AVGFunctions.InitializeGCash(8, LSCPOSTerminal) then
             EXIT;
 
         POSTransactionCU.OpenNumericKeyboard(GCashAmountMsg, 0, '', 50103);
         EXIT;
-
     end;
 
     local procedure GCashQueryEx()
     begin
-        IF NOT AVGFunctions.InitializeGCash(9, LSCPOSTerminal, LSCGlobalRec) then
+        IF NOT AVGFunctions.InitializeGCash(9, LSCPOSTerminal) then
             EXIT;
-        // AVGFunctions.GCashHeartBeatCheck(POSTerminal);
-    end;
-
-    local procedure GCashCancelEx()
-    begin
-        IF NOT AVGFunctions.InitializeGCash(10, LSCPOSTerminal, LSCGlobalRec) then
-            EXIT;
-
-        LSCPOSGui.OpenAlphabeticKeyboard(GCashCancelAcqID, '', FALSE, '#GCASHCANCEL', 64);
-        EXIT;
     end;
 
     local procedure GCashRefundEx()
     begin
-        IF NOT AVGFunctions.InitializeGCash(11, LSCPOSTerminal, LSCGlobalRec) then
+        IF NOT AVGFunctions.ValidateGCashApi(11) then
             EXIT;
-        // AVGFunctions.GCashHeartBeatCheck(POSTerminal);
     end;
 
 }

@@ -1,7 +1,7 @@
 page 50002 "AVG Setup"
 {
     ApplicationArea = All;
-    Caption = 'AVG Setup';
+    Caption = 'AVG General Setup';
     PageType = Card;
     InsertAllowed = false;
     DeleteAllowed = false;
@@ -41,6 +41,13 @@ page 50002 "AVG Setup"
                 {
                     Editable = false;
                 }
+                field("Hide Values on Keyboard"; Rec."Hide Values on Keyboard")
+                {
+
+                }
+                // group(Payments)
+                // {
+                // }
             }
         }
     }

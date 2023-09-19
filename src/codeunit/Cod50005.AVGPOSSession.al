@@ -5,7 +5,6 @@ codeunit 50005 "AVG POS Session"
     var
         AVGSetup: Record "AVG Setup";
         LSCPOSTransaction: Codeunit "LSC POS Transaction";
-        LSCPOSSession: Codeunit "LSC POS Session";
         CurrPayQR: Text;
         CurrPayQRAmountText: Text;
         CurrPartnerRefNo: Text;
@@ -19,9 +18,16 @@ codeunit 50005 "AVG POS Session"
         CurrGCashSelectedInfocode: Text;
         CurrGCashRefundAmount: Text;
 
-    procedure InitAVGSetup()
+    procedure AVGPOSErrorMessages(pTxt: Text)
     begin
-        AVGSetup.GET;
+        case AVGSetup."Error Prompt Messages Format" OF
+            AVGSetup."Error Prompt Messages Format"::" ":
+                Error(pTxt);
+            AVGSetup."Error Prompt Messages Format"::"Standard Error Prompt Message":
+                LSCPOSTransaction.PosMessage(pTxt);
+            AVGSetup."Error Prompt Messages Format"::"Banner Error Prompt Message":
+                LSCPOSTransaction.PosErrorBanner(pTxt);
+        end;
     end;
 
     procedure AVGPOSMessages(pTxt: Text)
@@ -36,91 +42,20 @@ codeunit 50005 "AVG POS Session"
         end;
     end;
 
-    procedure AVGPOSErrorMessages(pTxt: Text)
+    procedure ClearAllValues()
     begin
-        case AVGSetup."Error Prompt Messages Format" OF
-            AVGSetup."Error Prompt Messages Format"::" ":
-                Error(pTxt);
-            AVGSetup."Error Prompt Messages Format"::"Standard Error Prompt Message":
-                LSCPOSTransaction.PosMessage(pTxt);
-            AVGSetup."Error Prompt Messages Format"::"Banner Error Prompt Message":
-                LSCPOSTransaction.PosErrorBanner(pTxt);
-        end;
-    end;
-
-    procedure ClearCurrPayQRCode()
-    begin
-        CurrPayQR := '';
-    end;
-
-    procedure SetCurrPayQRCode(var pTxtPayQRCode: Text)
-    begin
-        CurrPayQR := pTxtPayQRCode;
-    end;
-
-    procedure GetCurrPayQRCode(): Text;
-    begin
-        EXIT(CurrPayQR);
-    end;
-
-    procedure ClearCurrPayQRAmount()
-    begin
-        CurrPayQRAmountText := '';
-    end;
-
-    procedure SetCurrPayQRAmount(var pTxtPayQRAmount: Text)
-    begin
-        CurrPayQRAmountText := pTxtPayQRAmount;
-    end;
-
-    procedure GetCurrPayQRAmount(): Text;
-    begin
-        EXIT(CurrPayQRAmountText);
-    end;
-
-    procedure ClearCurrPartnerRefNo()
-    begin
-        CurrPartnerRefNo := '';
-    end;
-
-    procedure SetCurrPartnerRefNo(var pTxtPartnerRefNo: Text)
-    begin
-        CurrPartnerRefNo := pTxtPartnerRefNo;
-    end;
-
-    procedure GetCurrPartnerRefNo(): Text;
-    begin
-        EXIT(CurrPartnerRefNo);
-    end;
-
-    procedure ClearCurrCashInAmount()
-    begin
-        CurrCashInAmount := '';
-    end;
-
-    procedure SetCurrCashInAmount(var pTxtCashInAmount: Text)
-    begin
-        CurrCashInAmount := pTxtCashInAmount;
-    end;
-
-    procedure GetCurrCashInAmount(): Text;
-    begin
-        EXIT(CurrCashInAmount);
-    end;
-
-    procedure ClearCurrCashInMobileNo()
-    begin
-        CurrCashInMobileNo := '';
-    end;
-
-    procedure SetCurrCashInMobileNo(var pTxtCashInMobileNo: Text)
-    begin
-        CurrCashInMobileNo := pTxtCashInMobileNo;
-    end;
-
-    procedure GetCurrCashInMobileNo(): Text;
-    begin
-        EXIT(CurrCashInMobileNo);
+        ClearCurrAuthToken();
+        ClearCurrCashInAmount();
+        ClearCurrCashInMobileNo();
+        ClearCurrGCashCancelAcqID();
+        ClearCurrGCashPayQRAmount();
+        ClearCurrGCashPayQRCode();
+        ClearCurrGCashRefundAcqID();
+        ClearCurrGCashRefundAmount();
+        ClearCurrGCashSelectedInfocode();
+        ClearCurrPartnerRefNo();
+        ClearCurrPayQRAmount();
+        ClearCurrPayQRCode();
     end;
 
     procedure ClearCurrAuthToken()
@@ -128,44 +63,14 @@ codeunit 50005 "AVG POS Session"
         CurrAuthToken := '';
     end;
 
-    procedure SetCurrAuthToken(var pTxtAuthToken: Text)
+    procedure ClearCurrCashInAmount()
     begin
-        CurrAuthToken := pTxtAuthToken;
+        CurrCashInAmount := '';
     end;
 
-    procedure GetCurrAuthToken(): Text;
+    procedure ClearCurrCashInMobileNo()
     begin
-        EXIT(CurrAuthToken);
-    end;
-
-    procedure ClearCurrGCashPayQRCode()
-    begin
-        CurrGCashPayQR := '';
-    end;
-
-    procedure SetCurrGCashPayQRCode(var pTxtGCashPayQRCode: Text)
-    begin
-        CurrGCashPayQR := pTxtGCashPayQRCode;
-    end;
-
-    procedure GetCurrGCashPayQRCode(): Text;
-    begin
-        EXIT(CurrGCashPayQR);
-    end;
-
-    procedure ClearCurrGCashPayQRAmount()
-    begin
-        CurrGCashPayQRAmountText := '';
-    end;
-
-    procedure SetGCashCurrPayQRAmount(var pTxtPayQRAmount: Text)
-    begin
-        CurrGCashPayQRAmountText := pTxtPayQRAmount;
-    end;
-
-    procedure GetGCashCurrPayQRAmount(): Text;
-    begin
-        EXIT(CurrGCashPayQRAmountText);
+        CurrCashInMobileNo := '';
     end;
 
     procedure ClearCurrGCashCancelAcqID()
@@ -173,44 +78,19 @@ codeunit 50005 "AVG POS Session"
         CurrGCashCancelAcqID := '';
     end;
 
-    procedure SetCurrGCashCancelAcqID(var pTxtGCashCancelAcID: Text)
+    procedure ClearCurrGCashPayQRAmount()
     begin
-        CurrGCashCancelAcqID := pTxtGCashCancelAcID;
+        CurrGCashPayQRAmountText := '';
     end;
 
-    procedure GetCurrGCashCancelAcqID(): Text;
+    procedure ClearCurrGCashPayQRCode()
     begin
-        EXIT(CurrGCashCancelAcqID);
+        CurrGCashPayQR := '';
     end;
 
     procedure ClearCurrGCashRefundAcqID()
     begin
-        CurrGCashCancelAcqID := '';
-    end;
-
-    procedure SetCurrGCashRefundAcqID(var pTxtGCashRefundAcqID: Text)
-    begin
-        CurrGCashRefundAmount := pTxtGCashRefundAcqID;
-    end;
-
-    procedure GetCurrGCashRefundAcqID(): Text;
-    begin
-        EXIT(CurrGCashRefundAmount);
-    end;
-
-    procedure ClearCurrGCashSelectedInfocode()
-    begin
-        CurrGCashSelectedInfocode := '';
-    end;
-
-    procedure SetCurrGCashSelectedInfocode(var pTxtGCashSelectedInfocode: Text)
-    begin
-        CurrGCashSelectedInfocode := pTxtGCashSelectedInfocode;
-    end;
-
-    procedure GetCurrGCashSelectedInfocode(): Text;
-    begin
-        EXIT(CurrGCashSelectedInfocode);
+        CurrGCashRefundAcqID := '';
     end;
 
     procedure ClearCurrGCashRefundAmount()
@@ -218,13 +98,153 @@ codeunit 50005 "AVG POS Session"
         CurrGCashRefundAmount := '';
     end;
 
-    procedure SetCurrGCashRefundAmount(var pTxtGCashRefundAmount: Text)
+    procedure ClearCurrGCashSelectedInfocode()
     begin
-        CurrGCashRefundAmount := pTxtGCashRefundAmount;
+        CurrGCashSelectedInfocode := '';
+    end;
+
+    procedure ClearCurrPartnerRefNo()
+    begin
+        CurrPartnerRefNo := '';
+    end;
+
+    procedure ClearCurrPayQRAmount()
+    begin
+        CurrPayQRAmountText := '';
+    end;
+
+    procedure ClearCurrPayQRCode()
+    begin
+        CurrPayQR := '';
+    end;
+
+    procedure GetCurrAuthToken(): Text;
+    begin
+        EXIT(CurrAuthToken);
+    end;
+
+    procedure GetCurrCashInAmount(): Text;
+    begin
+        EXIT(CurrCashInAmount);
+    end;
+
+    procedure GetCurrCashInMobileNo(): Text;
+    begin
+        EXIT(CurrCashInMobileNo);
+    end;
+
+    procedure GetCurrGCashCancelAcqID(): Text;
+    begin
+        EXIT(CurrGCashCancelAcqID);
+    end;
+
+    procedure GetCurrGCashPayQRCode(): Text;
+    begin
+        EXIT(CurrGCashPayQR);
+    end;
+
+    procedure GetCurrGCashRefundAcqID(): Text;
+    begin
+        EXIT(CurrGCashRefundAcqID);
     end;
 
     procedure GetCurrGCashRefundAmount(): Text;
     begin
         EXIT(CurrGCashRefundAmount);
+    end;
+
+    procedure GetCurrGCashSelectedInfocode(): Text;
+    begin
+        EXIT(CurrGCashSelectedInfocode);
+    end;
+
+    procedure GetCurrPartnerRefNo(): Text;
+    begin
+        EXIT(CurrPartnerRefNo);
+    end;
+
+    procedure GetCurrPayQRAmount(): Text;
+    begin
+        EXIT(CurrPayQRAmountText);
+    end;
+
+    procedure GetCurrPayQRCode(): Text;
+    begin
+        EXIT(CurrPayQR);
+    end;
+
+    procedure GetGCashCurrPayQRAmount(): Text;
+    begin
+        EXIT(CurrGCashPayQRAmountText);
+    end;
+
+    procedure GetHideKeybValues(): Boolean
+    begin
+        Exit(AVGSetup."Hide Values on Keyboard");
+    end;
+
+    procedure InitAVGSetup()
+    begin
+        AVGSetup.GET;
+    end;
+
+    procedure SetCurrAuthToken(var pTxtAuthToken: Text)
+    begin
+        CurrAuthToken := pTxtAuthToken;
+    end;
+
+    procedure SetCurrCashInAmount(var pTxtCashInAmount: Text)
+    begin
+        CurrCashInAmount := pTxtCashInAmount;
+    end;
+
+    procedure SetCurrCashInMobileNo(var pTxtCashInMobileNo: Text)
+    begin
+        CurrCashInMobileNo := pTxtCashInMobileNo;
+    end;
+
+    procedure SetCurrGCashCancelAcqID(var pTxtGCashCancelAcID: Text)
+    begin
+        CurrGCashCancelAcqID := pTxtGCashCancelAcID;
+    end;
+
+    procedure SetCurrGCashPayQRCode(var pTxtGCashPayQRCode: Text)
+    begin
+        CurrGCashPayQR := pTxtGCashPayQRCode;
+    end;
+
+    procedure SetCurrGCashRefundAcqID(var pTxtGCashRefundAcqID: Text)
+    begin
+        CurrGCashRefundAcqID := pTxtGCashRefundAcqID;
+    end;
+
+    procedure SetCurrGCashRefundAmount(var pTxtGCashRefundAmount: Text)
+    begin
+        CurrGCashRefundAmount := pTxtGCashRefundAmount;
+    end;
+
+    procedure SetCurrGCashSelectedInfocode(var pTxtGCashSelectedInfocode: Text)
+    begin
+        CurrGCashSelectedInfocode := pTxtGCashSelectedInfocode;
+    end;
+
+    procedure SetCurrPartnerRefNo(var pTxtPartnerRefNo: Text)
+    begin
+        CurrPartnerRefNo := pTxtPartnerRefNo;
+    end;
+
+    procedure SetCurrPayQRAmount(var pTxtPayQRAmount: Text)
+    begin
+        CurrPayQRAmountText := pTxtPayQRAmount;
+    end;
+
+    procedure SetCurrPayQRCode(var pTxtPayQRCode: Text)
+    begin
+        CurrPayQR := pTxtPayQRCode;
+    end;
+
+    procedure SetGCashCurrPayQRAmount(var pTxtPayQRAmount: Text)
+    begin
+        CurrGCashPayQRAmountText := pTxtPayQRAmount;
     end;
 }

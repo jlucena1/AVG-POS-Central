@@ -238,11 +238,7 @@ tableextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal"
             Caption = 'GCash Order Title';
             DataClassification = CustomerContent;
         }
-        field(50143; "GCash Exec. Payment Per Amt."; Boolean)
-        {
-            Caption = 'GCash Exec. Payment Per Amt.';
-            DataClassification = CustomerContent;
-        }
+        // field 50143 Vacant and need use
         field(50144; "GCash Tender Type"; Code[10])
         {
             Caption = 'GCash Tender Type';

@@ -11,11 +11,475 @@ codeunit 50004 "AVG Http Functions"
         LSCHttpWrapper: Codeunit "LSC Http Wrapper";
         LSCHttpWrapperGCashQuery: Codeunit "LSC Http Wrapper";
         LSCPOSTransactionCU: Codeunit "LSC POS Transaction";
-        LSCLSCPOSSession: Codeunit "LSC POS Session";
         LSCPOSTransLineCU: Codeunit "LSC POS Trans. Lines";
+        LSCPOSSession: Codeunit "LSC POS Session";
         LSCAuthType: Enum "LSC Http AuthType";
         LSCContentType: Enum "LSC Http ContentType";
         TypeHelper: Codeunit "Type Helper";
+
+    procedure ClearHttpVars()
+    begin
+        LSCHttpWrapper.ClearClient();
+        LSCHttpWrapper.ClearErrors();
+        LSCHttpWrapper.ClearFlags();
+        LSCHttpWrapper.ClearHeaders();
+        LSCHttpWrapper.ClearVars();
+    end;
+
+    procedure ClearHttpVarsGCashQuery()
+    begin
+        LSCHttpWrapperGCashQuery.ClearClient();
+        LSCHttpWrapperGCashQuery.ClearErrors();
+        LSCHttpWrapperGCashQuery.ClearFlags();
+        LSCHttpWrapperGCashQuery.ClearHeaders();
+        LSCHttpWrapperGCashQuery.ClearVars();
+    end;
+
+    procedure GCashCancel(pRecPOSTerminal: Record "LSC POS Terminal"; pTxtAcqId: Text): Boolean
+    var
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        ResultMsg: Text;
+        VerifiedKeyPair: Boolean;
+    begin
+
+        //Header
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(10));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'C'));// C = Cancel Trans.
+
+        //Body
+        JObjectReqBodyDetails.Add('acquirementId', pTxtAcqId);
+        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
+
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Cancel Transaction Endpoint";
+            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                CLEAR(ResultMsg);
+                ResultMsg := GetResponseJsonByPathText('response.body.resultInfo.resultMsg');
+                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then begin
+                    ResultMsg := 'GCash Payment Cancellation Success.';
+                    EXIT(TRUE);
+                end else begin
+                    AVGPOSFunctions.AVGPOSErrorMessage(ResultMsg.ToUpper());
+                    exit(false);
+                end;
+            end ELSE
+                exit(false);
+        END;
+    end;
+
+    procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal"; WithPromptMsg: Boolean): Boolean
+    var
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        VerifiedKeyPair: Boolean;
+    begin
+        CLEAR(SignatureString);
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(7));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'H'));// H = HeartBeat;
+        JObjectReqBodyDetails.Add('echo', 'test connection');
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."HeartBeat Check Endpoint";
+            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then
+                    IF WithPromptMsg THEN
+                        AVGPOSFunctions.AVGPOSMessage('GCash Heartbeat is Online.')
+                    ELSE
+                        EXIT(TRUE);
+            end ELSE
+                if WithPromptMsg then
+                    AVGPOSFunctions.AVGPOSErrorMessage('GCash Heartbeat is Offline.')
+                ELSE
+                    exit(false);
+        END;
+
+    end;
+
+    procedure GCashQuery(pRecPOSTerminal: Record "LSC POS Terminal"; WithPromptMsg: Boolean; pAcqID: Text): Boolean
+    var
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        VerifiedKeyPair: Boolean;
+    begin
+
+        CLEAR(SignatureString);
+
+        //Header
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(9));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'Q'));// Q = Query Trans
+
+        //Body
+        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
+        JObjectReqBodyDetails.Add('acquirementId', pAcqID);
+
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Query Transaction Endpoint";
+            IF ProcessGCashQueryHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                IF GCashQueryGetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then
+                    IF WithPromptMsg THEN
+                        AVGPOSFunctions.AVGPOSMessage('GCash Heartbeat is Online.')
+                    ELSE
+                        EXIT(TRUE);
+            end ELSE
+                if WithPromptMsg then
+                    AVGPOSFunctions.AVGPOSErrorMessage('GCash Heartbeat is Offline.')
+                ELSE
+                    exit(false);
+        END;
+    end;
+
+    procedure GCashQueryGetResponseJsonByPathText(pPath: Text): Text;
+    var
+        JTokenLocal: JsonToken;
+        ResponseText: Text;
+        ResponsePathJObject: JsonObject;
+    begin
+        CLEAR(ResponsePathJObject);
+        ResponsePathJObject := LSCHttpWrapper.ResponseJson();
+        IF NOT ResponsePathJObject.SelectToken(pPath, JTokenLocal) then
+            EXIT('');
+
+        CLEAR(ResponseText);
+        JTokenLocal := LSCHttpWrapperGCashQuery.GetResponseJsonByPath(pPath);
+
+        IF JTokenLocal.WriteTo(ResponseText) then BEGIN
+            IF ResponseText.Contains('null') THEN
+                ResponseText := ResponseText.Replace('null', '');
+            IF ResponseText.Contains('"') THEN
+                ResponseText := ResponseText.Replace('"', '');
+        END ELSE
+            ResponseText := '';
+        EXIT(ResponseText);
+    end;
+
+    procedure GCashRefund(pRecPOSTerminal: Record "LSC POS Terminal"; pTxtAmount: Text; pAcqID: Code[80]): Boolean
+    var
+        JObjectRefundOrder: JsonObject;
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        MerchantTransId: Text;
+        ResultMsg: Text;
+        VerifiedKeyPair: Boolean;
+        Amount: Decimal;
+    begin
+        CLEAR(MerchantTransId);
+        MerchantTransId := DELCHR(AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'R')); // R = Refund
+        IF MerchantTransId = '' then
+            MerchantTransId := LSCPOSTransactionCU.GetReceiptNo();
+
+        Clear(Amount);
+        IF NOT Evaluate(Amount, pTxtAmount) then
+            AVGPOSFunctions.AVGPOSErrorMessage('Invalid Amount.');
+
+        IF Amount = 0 then
+            EXIT;
+
+        pTxtAmount := LSCPOSTransactionCU.FormatAmount(Amount);
+        pTxtAmount := DELCHR(pTxtAmount, '=', ',|.');
+
+        CLEAR(SignatureString);
+        //RefundOrder
+
+        JObjectRefundOrder.Add('currency', LSCPOSSession.ActiveCurrencyCode());
+        JObjectRefundOrder.Add('value', pTxtAmount);
+
+        //Header
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(11));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'R'));// R = Refund Trans.
+
+        //Body
+        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
+        JObjectReqBodyDetails.Add('acquirementId', pAcqID);
+        JObjectReqBodyDetails.Add('merchantTransId', MerchantTransId);
+        JObjectReqBodyDetails.Add('requestId', LSCPOSTransactionCU.GetReceiptNo());
+        JObjectReqBodyDetails.Add('refundAmount', JObjectRefundOrder);
+
+        JObjectReqBodyDetails.Add('refundAppliedTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqBodyDetails.Add('refundReason', AVGPOSSession.GetCurrGCashSelectedInfocode());
+
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Refund Transaction Endpoint";
+            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                CLEAR(ResultMsg);
+                ResultMsg := GetResponseJsonByPathText('response.body.resultInfo.resultMsg');
+                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then begin
+                    AVGPOSFunctions.AVGPOSMessage(ResultMsg.ToUpper());
+                    EXIT(TRUE);
+                end else begin
+                    AVGPOSFunctions.AVGPOSErrorMessage(ResultMsg.ToUpper());
+                    exit(false);
+                end;
+            end ELSE
+                exit(false);
+        END;
+    end;
+
+    procedure GCashRetailPay(pRecPOSTerminal: Record "LSC POS Terminal"; pTxtAmount: Text; pQRCode: Code[80]): Boolean
+    var
+        JObjectOrder: JsonObject;
+        JObjectShopInfo: JsonObject;
+        JObjectScannerInfo: JsonObject;
+        JObjectEnvInfo: JsonObject;
+        JObjectMoney: JsonObject;
+        JObjectReqMerged: JsonObject;
+        JObjectReqHeaderDetails: JsonObject;
+        JObjectReqBodyDetails: JsonObject;
+        JObjectRequest: JsonObject;
+        JsonRequestString: Text;
+        SignatureString: Text;
+        EndpointString: Text;
+        MerchantTransId: Text;
+        StatusString: Text;
+        ResultMsg: Text;
+        QueryStatusString: Text;
+        VerifiedKeyPair: Boolean;
+        Amount: Decimal;
+        Counter: Integer;
+    begin
+        clear(ResultMsg);
+
+        Clear(Amount);
+        IF NOT Evaluate(Amount, pTxtAmount) then
+            AVGPOSFunctions.AVGPOSErrorMessage('Invalid Amount.');
+
+        IF Amount = 0 then
+            EXIT;
+
+        pTxtAmount := LSCPOSTransactionCU.FormatAmount(Amount);
+        pTxtAmount := DELCHR(pTxtAmount, '=', ',|.');
+
+
+        CLEAR(MerchantTransId);
+        MerchantTransId := DELCHR(AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'P')); // P = Retail Pay
+        IF MerchantTransId = '' then
+            MerchantTransId := LSCPOSTransactionCU.GetReceiptNo();
+
+        CLEAR(SignatureString);
+
+        //Order
+        JObjectMoney.Add('currency', LSCPOSSession.ActiveCurrencyCode());
+        JObjectMoney.Add('value', pTxtAmount);
+
+        JObjectOrder.Add('orderAmount', JObjectMoney);
+        JObjectOrder.Add('merchantTransId', MerchantTransId);
+        JObjectOrder.Add('orderTitle', pRecPOSTerminal."GCash Order Title");
+
+        JObjectShopInfo.Add('shopId', pRecPOSTerminal."Shop ID");
+        JObjectShopInfo.Add('shopName', pRecPOSTerminal."Shop Name");
+
+        JObjectScannerInfo.Add('deviceId', pRecPOSTerminal."GCash Scanner Device ID");
+        JObjectScannerInfo.Add('deviceIp', pRecPOSTerminal."GCash Scanner Device IP");
+
+        JObjectEnvInfo.Add('orderTerminalType', pRecPOSTerminal."GCash Order Terminal Type");
+        JObjectEnvInfo.Add('terminalType', pRecPOSTerminal."GCash Terminal Type");
+        JObjectEnvInfo.Add('merchantTerminalId', pRecPOSTerminal."GCash Merchant Terminal ID");
+
+        //Header
+        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
+        JObjectReqHeaderDetails.Add('function', GetGCashFunction(8));
+        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
+        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
+        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
+        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'P')); // P = Retail Pay
+
+        //Body
+        JObjectReqBodyDetails.Add('order', JObjectOrder);
+        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
+        JObjectReqBodyDetails.Add('shopInfo', JObjectShopInfo);
+        JObjectReqBodyDetails.Add('scannerInfo', JObjectScannerInfo);
+        JObjectReqBodyDetails.Add('productCode', pRecPOSTerminal."GCash Product Code");
+        JObjectReqBodyDetails.Add('authCodeType', pRecPOSTerminal."GCash AuthCode Type");
+        JObjectReqBodyDetails.Add('authCode', pQRCode);
+        JObjectReqBodyDetails.Add('envInfo', JObjectEnvInfo);
+
+        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
+        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
+        CLEAR(JsonRequestString);
+        JObjectReqMerged.WriteTo(JsonRequestString);
+
+        JObjectRequest.Add('request', JObjectReqMerged);
+        CLEAR(SignatureString);
+        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
+        JObjectRequest.Add('signature', SignatureString);
+        IF VerifiedKeyPair THEN begin
+            CLEAR(EndpointString);
+            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Retail Pay Endpoint";
+            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
+                StatusString := GetResponseJsonByPathText('response.body.resultInfo.resultStatus');
+                case StatusString of
+                    'S':
+                        begin
+                            AVGPOSFunctions.AVGPOSMessage('GCash Payment Success.');
+                            exit(true);
+                        end;
+                    'F':
+                        begin
+                            ResultMsg := GetResponseJsonByPathText('response.body.resultInfo.resultMsg');
+                            IF STRPOS(ResultMsg, 'OTP_CHECK') <> 0 then
+                                ResultMsg := 'Scanned QR Code is already Expired.\Please Try Again.';
+                            AVGPOSFunctions.AVGPOSErrorMessage(ResultMsg.ToUpper());
+                            exit(false);
+                        end;
+                    '', 'U':
+                        begin
+                            for counter := 0 to 3 DO begin
+                                GCashQuery(pRecPOSTerminal, false, ProcessGCashTransIDHierarchy);
+                                CLEAR(QueryStatusString);
+                                QueryStatusString := GCashQueryGetResponseJsonByPathText('response.body.statusDetail.acquirementStatus');
+                                IF QueryStatusString IN ['SUCCESS', 'CLOSED'] then
+                                    break;
+                                IF counter = 3 then begin
+                                    GCashCancel(pRecPOSTerminal, ProcessGCashTransIDHierarchy);
+                                    exit(false);
+                                end;
+                            end;
+                            case QueryStatusString of
+                                'SUCCESS':
+                                    begin
+                                        AVGPOSFunctions.AVGPOSMessage(GetResponseJsonByPathText('response.body.resultInfo.resultMsg'));
+                                        exit(true);
+                                    end;
+                                'CLOSED':
+                                    begin
+                                        AVGPOSFunctions.AVGPOSErrorMessage(GetResponseJsonByPathText('response.body.resultInfo.resultMsg'));
+                                        exit(false);
+                                    end;
+                            end;
+                        end;
+                    else begin
+                        AVGPOSFunctions.AVGPOSErrorMessage('Invalid Request.');
+                        EXIT(false);
+                    end;
+                end;
+            END ELSE begin
+                AVGPOSFunctions.AVGPOSErrorMessage('Response Failed.\' + GetResponseJsonByPathText('response.body.resultInfo.resultMsg'));
+                EXIT(false);
+            end;
+        end ELSE
+            exit(false);
+    END;
+
+    procedure GetGCashFunction(GCashFunc: Integer): Text;
+    var
+        GCashFunctionTypes: Enum "AVG Type Trans. Line";
+        txtFunctionName: Text;
+    begin
+        CLEAR(txtFunctionName);
+        GCashFunctionTypes := "AVG Type Trans. Line".FromInteger(GCashFunc);
+        case GCashFunctionTypes of
+            GCashFunctionTypes::"HeartBeat Check":
+                txtFunctionName := 'gcash.common.heart.beat';
+            GCashFunctionTypes::"Retail Pay":
+                txtFunctionName := 'gcash.acquiring.retail.pay';
+            GCashFunctionTypes::"Query Transaction":
+                txtFunctionName := 'gcash.acquiring.order.query';
+            GCashFunctionTypes::"Cancel Transaction":
+                txtFunctionName := 'gcash.acquiring.order.cancel';
+            GCashFunctionTypes::"Refund Transaction":
+                txtFunctionName := 'gcash.acquiring.order.refund';
+        end;
+        EXIT(txtFunctionName);
+    end;
+
+    procedure GetResponseJsonByPathText(pPath: Text): Text;
+    var
+        JTokenLocal: JsonToken;
+        ResponseText: Text;
+        ResponsePathJObject: JsonObject;
+    begin
+        CLEAR(ResponsePathJObject);
+        ResponsePathJObject := LSCHttpWrapper.ResponseJson();
+        IF NOT ResponsePathJObject.SelectToken(pPath, JTokenLocal) then
+            EXIT('');
+
+        CLEAR(ResponseText);
+        JTokenLocal := LSCHttpWrapper.GetResponseJsonByPath(pPath);
+        IF JTokenLocal.WriteTo(ResponseText) then BEGIN
+            IF ResponseText.Contains('null') THEN
+                ResponseText := ResponseText.Replace('null', '');
+            IF ResponseText.Contains('"') THEN
+                ResponseText := ResponseText.Replace('"', '');
+        END ELSE
+            ResponseText := '';
+        EXIT(ResponseText);
+    end;
 
     procedure ProcessAuthToken(pTxtUrl: Text; pTxtEndpoint: Text; pTxtClientID: Text; pTxtClientSecret: Text; pBolPayQR: Boolean; pTxtHeader1: Text; pTxtHeader2: Text): Text;
     var
@@ -45,43 +509,6 @@ codeunit 50004 "AVG Http Functions"
             AVGPOSFunctions.AVGPOSErrorMessage(StrSubstNo(AVGErrorProcessAuthToken, RStatus, RMessage));
             exit('');
         end;
-    end;
-
-    procedure ProcessCashInInquire(pTxtUrl: Text; pTxtEndpoint: Text; pTxtMobileNo: Text; pDecAmount: Decimal; pTxtRefNo: Text; pCodTerminalID: Code[20]; pTxtStaffID: Text): Boolean;
-    var
-        JObject: JsonObject;
-        RStatus: Text;
-        RMessage: Text;
-        bolOK: Boolean;
-        CashInSuccessConfirmMsg: Label 'Status: %1\Message: %2\\Do you want to Procced?';
-        CashInErrorMsg: Label 'Status: %1\Message: %2';
-    begin
-        ClearHttpVars;
-        LSCHttpWrapper.KeepAlive(true);
-        LSCHttpWrapper.SetCredentials('', AVGPOSSession.GetCurrAuthToken());
-        LSCHttpWrapper.AuthType(LSCAuthType::Bearer);
-        LSCHttpWrapper.ContentTypeFromEnum(LSCContentType::Json);
-        LSCHttpWrapper.SetHeader('User-Agent', 'AVGAllEasy');
-        LSCHttpWrapper.Url(pTxtUrl + pTxtEndpoint);
-        LSCHttpWrapper.Method('POST');
-        CLEAR(JObject);
-        JObject.Add('cashin_mobileno', pTxtMobileNo);
-        JObject.Add('cashin_amount', pDecAmount);
-        JObject.Add('partner_refno', pTxtRefNo);
-        JObject.Add('partner_terminalid', pCodTerminalID);
-        JObject.Add('partner_user', pTxtStaffID);
-        LSCHttpWrapper.RequestJson(JObject);
-        IF LSCHttpWrapper.Send() THEN BEGIN
-            RStatus := GetResponseJsonByPathText('res_status');
-            RMessage := GetResponseJsonByPathText('res_message');
-            bolOK := LSCPOSTransactionCU.PosConfirm(StrSubstNo(CashInSuccessConfirmMsg, RStatus, RMessage), false);
-        END ELSE begin
-            RStatus := GetResponseJsonByPathText('res_status');
-            RMessage := GetResponseJsonByPathText('res_message');
-            AVGPOSFunctions.AVGPOSErrorMessage(StrSubstNo(CashInErrorMsg, RStatus, RMessage));
-            bolOK := false;
-        end;
-        EXIT(bolOK);
     end;
 
     procedure ProcessCashInCredit(pTxtUrl: Text; pTxtEndpoint: Text; pTxtMobileNo: Text; pDecAmount: Decimal; pTxtRefNo: Text; pCodTerminalID: Code[20]; pTxtStaffID: Text): Boolean;
@@ -116,6 +543,43 @@ codeunit 50004 "AVG Http Functions"
             RStatus := GetResponseJsonByPathText('res_status');
             RMessage := GetResponseJsonByPathText('res_message');
             AVGPOSFunctions.AVGPOSErrorMessage(StrSubstNo(CashInMsg, RStatus, RMessage));
+            bolOK := false;
+        end;
+        EXIT(bolOK);
+    end;
+
+    procedure ProcessCashInInquire(pTxtUrl: Text; pTxtEndpoint: Text; pTxtMobileNo: Text; pDecAmount: Decimal; pTxtRefNo: Text; pCodTerminalID: Code[20]; pTxtStaffID: Text): Boolean;
+    var
+        JObject: JsonObject;
+        RStatus: Text;
+        RMessage: Text;
+        bolOK: Boolean;
+        CashInSuccessConfirmMsg: Label 'Status: %1\Message: %2\\Do you want to Procced?';
+        CashInErrorMsg: Label 'Status: %1\Message: %2';
+    begin
+        ClearHttpVars;
+        LSCHttpWrapper.KeepAlive(true);
+        LSCHttpWrapper.SetCredentials('', AVGPOSSession.GetCurrAuthToken());
+        LSCHttpWrapper.AuthType(LSCAuthType::Bearer);
+        LSCHttpWrapper.ContentTypeFromEnum(LSCContentType::Json);
+        LSCHttpWrapper.SetHeader('User-Agent', 'AVGAllEasy');
+        LSCHttpWrapper.Url(pTxtUrl + pTxtEndpoint);
+        LSCHttpWrapper.Method('POST');
+        CLEAR(JObject);
+        JObject.Add('cashin_mobileno', pTxtMobileNo);
+        JObject.Add('cashin_amount', pDecAmount);
+        JObject.Add('partner_refno', pTxtRefNo);
+        JObject.Add('partner_terminalid', pCodTerminalID);
+        JObject.Add('partner_user', pTxtStaffID);
+        LSCHttpWrapper.RequestJson(JObject);
+        IF LSCHttpWrapper.Send() THEN BEGIN
+            RStatus := GetResponseJsonByPathText('res_status');
+            RMessage := GetResponseJsonByPathText('res_message');
+            bolOK := LSCPOSTransactionCU.PosConfirm(StrSubstNo(CashInSuccessConfirmMsg, RStatus, RMessage), false);
+        END ELSE begin
+            RStatus := GetResponseJsonByPathText('res_status');
+            RMessage := GetResponseJsonByPathText('res_message');
+            AVGPOSFunctions.AVGPOSErrorMessage(StrSubstNo(CashInErrorMsg, RStatus, RMessage));
             bolOK := false;
         end;
         EXIT(bolOK);
@@ -267,7 +731,6 @@ codeunit 50004 "AVG Http Functions"
     var
         RStatus: Integer;
         RMessage: Text;
-        RError: Text;
         bolOK: Boolean;
         PayQRSuccessMsg: Label 'Status Code: %1\Message: %2';
         PayQRErrorMsg: Label 'Status: %1\Message: %2\Reason: %3\\Transaction will not Proceed.';
@@ -297,428 +760,6 @@ codeunit 50004 "AVG Http Functions"
         EXIT(bolOK);
     end;
 
-    procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal"; WithPromptMsg: Boolean): Boolean
-    var
-        JObjectReqMerged: JsonObject;
-        JObjectReqHeaderDetails: JsonObject;
-        JObjectReqBodyDetails: JsonObject;
-        JObjectRequest: JsonObject;
-        JsonRequestString: Text;
-        SignatureString: Text;
-        EndpointString: Text;
-        VerifiedKeyPair: Boolean;
-    begin
-        CLEAR(SignatureString);
-        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
-        JObjectReqHeaderDetails.Add('function', GetGCashFunction(7));
-        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
-        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
-        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
-        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'H'));// H = HeartBeat;
-        JObjectReqBodyDetails.Add('echo', 'test connection');
-        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
-        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
-        CLEAR(JsonRequestString);
-        JObjectReqMerged.WriteTo(JsonRequestString);
-
-        JObjectRequest.Add('request', JObjectReqMerged);
-        CLEAR(SignatureString);
-        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
-        JObjectRequest.Add('signature', SignatureString);
-        IF VerifiedKeyPair THEN begin
-            CLEAR(EndpointString);
-            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."HeartBeat Check Endpoint";
-            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
-                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then
-                    IF WithPromptMsg THEN
-                        AVGPOSFunctions.AVGPOSMessage('GCash Heartbeat is Online.')
-                    ELSE
-                        EXIT(TRUE);
-            end ELSE
-                if WithPromptMsg then
-                    AVGPOSFunctions.AVGPOSErrorMessage('GCash Heartbeat is Offline.')
-                ELSE
-                    exit(false);
-        END;
-
-    end;
-
-    procedure GCashRetailPay(pRecPOSTerminal: Record "LSC POS Terminal"; pTxtAmount: Text; pQRCode: Code[80]): Boolean
-    var
-        JObjectOrder: JsonObject;
-        JObjectShopInfo: JsonObject;
-        JObjectScannerInfo: JsonObject;
-        JObjectEnvInfo: JsonObject;
-        JObjectMoney: JsonObject;
-        JObjectReqMerged: JsonObject;
-        JObjectReqHeaderDetails: JsonObject;
-        JObjectReqBodyDetails: JsonObject;
-        JObjectRequest: JsonObject;
-        JsonRequestString: Text;
-        SignatureString: Text;
-        EndpointString: Text;
-        MerchantTransId: Text;
-        StatusString: Text;
-        QueryStatusString: Text;
-        VerifiedKeyPair: Boolean;
-        LSCPOSTransLineRec: Record "LSC POS Trans. Line";
-        Amount: Decimal;
-        Counter: Integer;
-    begin
-        Clear(Amount);
-        IF NOT Evaluate(Amount, pTxtAmount) then
-            AVGPOSSession.AVGPOSErrorMessages('Invalid Amount.');
-
-        IF Amount = 0 then
-            EXIT;
-
-        pTxtAmount := LSCPOSTransactionCU.FormatAmount(Amount);
-        pTxtAmount := DELCHR(pTxtAmount, '=', ',|.');
-
-        LSCPOSTransLineCU.GetCurrentLine(LSCPOSTransLineRec);
-        CLEAR(MerchantTransId);
-        MerchantTransId := DELCHR(AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'P')); // P = Retail Pay
-        IF MerchantTransId = '' then
-            MerchantTransId := LSCPOSTransLineRec."Receipt No.";
-
-        CLEAR(SignatureString);
-
-        //Order
-        JObjectMoney.Add('currency', LSCLSCPOSSession.ActiveCurrencyCode());
-        JObjectMoney.Add('value', pTxtAmount);
-
-        JObjectOrder.Add('orderAmount', JObjectMoney);
-        JObjectOrder.Add('merchantTransId', LSCPOSTransLineRec."Receipt No.");
-        JObjectOrder.Add('orderTitle', pRecPOSTerminal."GCash Order Title");
-
-        JObjectShopInfo.Add('shopId', pRecPOSTerminal."Shop ID");
-        JObjectShopInfo.Add('shopName', pRecPOSTerminal."Shop Name");
-
-        JObjectScannerInfo.Add('deviceId', pRecPOSTerminal."GCash Scanner Device ID");
-        JObjectScannerInfo.Add('deviceIp', pRecPOSTerminal."GCash Scanner Device IP");
-
-        JObjectEnvInfo.Add('orderTerminalType', pRecPOSTerminal."GCash Order Terminal Type");
-        JObjectEnvInfo.Add('terminalType', pRecPOSTerminal."GCash Terminal Type");
-        JObjectEnvInfo.Add('merchantTerminalId', pRecPOSTerminal."GCash Merchant Terminal ID");
-
-        //Header
-        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
-        JObjectReqHeaderDetails.Add('function', GetGCashFunction(8));
-        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
-        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
-        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
-        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'P')); // P = Retail Pay
-
-        //Body
-        JObjectReqBodyDetails.Add('order', JObjectOrder);
-        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
-        JObjectReqBodyDetails.Add('shopInfo', JObjectShopInfo);
-        JObjectReqBodyDetails.Add('scannerInfo', JObjectScannerInfo);
-        JObjectReqBodyDetails.Add('productCode', pRecPOSTerminal."GCash Product Code");
-        JObjectReqBodyDetails.Add('authCodeType', pRecPOSTerminal."GCash AuthCode Type");
-        JObjectReqBodyDetails.Add('authCode', pQRCode);
-        JObjectReqBodyDetails.Add('envInfo', JObjectEnvInfo);
-
-        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
-        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
-        CLEAR(JsonRequestString);
-        JObjectReqMerged.WriteTo(JsonRequestString);
-
-        JObjectRequest.Add('request', JObjectReqMerged);
-        CLEAR(SignatureString);
-        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
-        JObjectRequest.Add('signature', SignatureString);
-        IF VerifiedKeyPair THEN begin
-            CLEAR(EndpointString);
-            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Retail Pay Endpoint";
-            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
-                StatusString := GetResponseJsonByPathText('response.body.resultInfo.resultStatus');
-                case StatusString of
-                    'S':
-                        begin
-                            InsertIntoGCashTransLine(8, AVGPOSSession.GetCurrGCashPayQRCode(), LSCHttpWrapper.GetRequestAsText(), LSCHttpWrapper.ResponseText());
-                            exit(true);
-                        end;
-                    'F':
-                        begin
-                            InsertIntoGCashTransLine(8, AVGPOSSession.GetCurrGCashPayQRCode(), LSCHttpWrapper.GetRequestAsText(), LSCHttpWrapper.ResponseText());
-                            exit(false);
-                        end;
-                    '', 'U':
-                        begin
-                            InsertIntoGCashTransLine(8, AVGPOSSession.GetCurrGCashPayQRCode(), LSCHttpWrapper.GetRequestAsText(), LSCHttpWrapper.ResponseText());
-                            for counter := 0 to 3 DO begin
-                                GCashQuery(pRecPOSTerminal, false, ProcessGCashTransIDHierarchy);
-                                InsertIntoGCashTransLine(9, AVGPOSSession.GetCurrGCashPayQRCode(), LSCHttpWrapperGCashQuery.GetRequestAsText(), LSCHttpWrapperGCashQuery.ResponseText());
-                                CLEAR(QueryStatusString);
-                                QueryStatusString := GCashQueryGetResponseJsonByPathText('response.body.statusDetail.acquirementStatus');
-                                IF QueryStatusString IN ['SUCCESS', 'CLOSED'] then
-                                    break;
-                                IF counter = 3 then begin
-                                    GCashCancel(pRecPOSTerminal, ProcessGCashTransIDHierarchy);
-                                    InsertIntoGCashTransLine(10, AVGPOSSession.GetCurrGCashPayQRCode(), LSCHttpWrapperGCashQuery.GetRequestAsText(), LSCHttpWrapperGCashQuery.ResponseText());
-                                    exit(false);
-                                end;
-                            end;
-                            case QueryStatusString of
-                                'SUCCESS':
-                                    begin
-                                        InsertIntoGCashTransLine(8, AVGPOSSession.GetCurrGCashPayQRCode(), LSCHttpWrapperGCashQuery.GetRequestAsText(), LSCHttpWrapperGCashQuery.ResponseText());
-                                        exit(true);
-                                    end;
-                                'CLOSED':
-                                    begin
-                                        InsertIntoGCashTransLine(9, AVGPOSSession.GetCurrGCashPayQRCode(), LSCHttpWrapperGCashQuery.GetRequestAsText(), LSCHttpWrapperGCashQuery.ResponseText());
-                                        exit(false);
-                                    end;
-                            end;
-                        end;
-                    else begin
-                        AVGPOSFunctions.AVGPOSErrorMessage('Invalid Request.');
-                        EXIT(false);
-                    end;
-                end;
-            END ELSE begin
-                AVGPOSFunctions.AVGPOSErrorMessage('Response Failed.\' + GetResponseJsonByPathText('response.body.resultInfo.resultMsg'));
-                EXIT(false);
-            end;
-        end ELSE
-            exit(false);
-    END;
-
-    procedure GCashQuery(pRecPOSTerminal: Record "LSC POS Terminal"; WithPromptMsg: Boolean; pAcqID: Text): Boolean
-    var
-        JObjectOrder: JsonObject;
-        JObjectShopInfo: JsonObject;
-        JObjectScannerInfo: JsonObject;
-        JObjectEnvInfo: JsonObject;
-        JObjectMoney: JsonObject;
-        JObjectReqMerged: JsonObject;
-        JObjectReqHeaderDetails: JsonObject;
-        JObjectReqBodyDetails: JsonObject;
-        JObjectRequest: JsonObject;
-        JsonRequestString: Text;
-        SignatureString: Text;
-        EndpointString: Text;
-        VerifiedKeyPair: Boolean;
-        LSCPOSTransLineRec: Record "LSC POS Trans. Line";
-    begin
-
-        CLEAR(SignatureString);
-
-        //Header
-        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
-        JObjectReqHeaderDetails.Add('function', GetGCashFunction(9));
-        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
-        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
-        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
-        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'Q'));// Q = Query Trans
-
-        //Body
-        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
-        JObjectReqBodyDetails.Add('acquirementId', pAcqID);
-
-        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
-        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
-        CLEAR(JsonRequestString);
-        JObjectReqMerged.WriteTo(JsonRequestString);
-
-        JObjectRequest.Add('request', JObjectReqMerged);
-        CLEAR(SignatureString);
-        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
-        JObjectRequest.Add('signature', SignatureString);
-        IF VerifiedKeyPair THEN begin
-            CLEAR(EndpointString);
-            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Query Transaction Endpoint";
-            IF ProcessGCashQueryHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
-                IF GCashQueryGetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then
-                    IF WithPromptMsg THEN
-                        AVGPOSFunctions.AVGPOSMessage('GCash Heartbeat is Online.')
-                    ELSE
-                        EXIT(TRUE);
-            end ELSE
-                if WithPromptMsg then
-                    AVGPOSFunctions.AVGPOSErrorMessage('GCash Heartbeat is Offline.')
-                ELSE
-                    exit(false);
-        END;
-    end;
-
-    procedure GCashCancel(pRecPOSTerminal: Record "LSC POS Terminal"; pTxtAcqId: Text): Boolean
-    var
-        JObjectOrder: JsonObject;
-        JObjectShopInfo: JsonObject;
-        JObjectScannerInfo: JsonObject;
-        JObjectEnvInfo: JsonObject;
-        JObjectMoney: JsonObject;
-        JObjectReqMerged: JsonObject;
-        JObjectReqHeaderDetails: JsonObject;
-        JObjectReqBodyDetails: JsonObject;
-        JObjectRequest: JsonObject;
-        JsonRequestString: Text;
-        SignatureString: Text;
-        EndpointString: Text;
-        VerifiedKeyPair: Boolean;
-        LSCPOSTransLineRec: Record "LSC POS Trans. Line";
-        Amount: Decimal;
-    begin
-
-        //Header
-        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
-        JObjectReqHeaderDetails.Add('function', GetGCashFunction(10));
-        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
-        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
-        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
-        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'C'));// C = Cancel Trans.
-
-        //Body
-        JObjectReqBodyDetails.Add('acquirementId', pTxtAcqId);
-        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
-
-        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
-        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
-
-        CLEAR(JsonRequestString);
-        JObjectReqMerged.WriteTo(JsonRequestString);
-
-        JObjectRequest.Add('request', JObjectReqMerged);
-        CLEAR(SignatureString);
-        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
-        JObjectRequest.Add('signature', SignatureString);
-        IF VerifiedKeyPair THEN begin
-            CLEAR(EndpointString);
-            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Cancel Transaction Endpoint";
-            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
-                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then begin
-                    InsertIntoGCashTransLine(10, '', LSCHttpWrapper.GetRequestAsText(), LSCHttpWrapper.ResponseText());
-                    EXIT(TRUE);
-                end else
-                    exit(false);
-            end ELSE
-                exit(false);
-        END;
-    end;
-
-    procedure GCashRefund(pRecPOSTerminal: Record "LSC POS Terminal"; pTxtAmount: Text; pAcqID: Code[80]): Boolean
-    var
-        JObjectRefundOrder: JsonObject;
-        JObjectMoney: JsonObject;
-        JObjectReqMerged: JsonObject;
-        JObjectReqHeaderDetails: JsonObject;
-        JObjectReqBodyDetails: JsonObject;
-        JObjectRequest: JsonObject;
-        JsonRequestString: Text;
-        SignatureString: Text;
-        EndpointString: Text;
-        MerchantTransId: Text;
-        VerifiedKeyPair: Boolean;
-        LSCPOSTransLineRec: Record "LSC POS Trans. Line";
-        Amount: Decimal;
-        RefundReasonInfocode: Record "LSC Infocode";
-        LSCTempPOSMenuLineRec: Record "LSC POS Menu Line" temporary;
-    begin
-        pRecPOSTerminal.TestField("GCash Reason Code");
-        RefundReasonInfocode.GET(pRecPOSTerminal."GCash Reason Code");
-        LSCTempPOSMenuLineRec.RESET;
-        LSCTempPOSMenuLineRec.DeleteAll();
-        // LSCLSCPOSSession.GetPosMenuRec()
-        // LSCTempPOSMenuLineRec.
-
-        // LSCPOSTransactionCU.InfoKeyPressed();
-        CLEAR(MerchantTransId);
-        MerchantTransId := DELCHR(AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'R')); // R = Refund
-        IF MerchantTransId = '' then
-            MerchantTransId := LSCPOSTransLineRec."Receipt No.";
-
-        Clear(Amount);
-        IF NOT Evaluate(Amount, pTxtAmount) then
-            AVGPOSSession.AVGPOSErrorMessages('Invalid Amount.');
-
-        IF Amount = 0 then
-            EXIT;
-
-        pTxtAmount := LSCPOSTransactionCU.FormatAmount(Amount);
-        pTxtAmount := DELCHR(pTxtAmount, '=', ',|.');
-
-        CLEAR(SignatureString);
-        //Order
-        LSCPOSTransLineCU.GetCurrentLine(LSCPOSTransLineRec);
-        JObjectMoney.Add('currency', LSCLSCPOSSession.ActiveCurrencyCode());
-        JObjectMoney.Add('value', pTxtAmount);
-
-
-        //Header
-        JObjectReqHeaderDetails.Add('version', pRecPOSTerminal."GCash Version");
-        JObjectReqHeaderDetails.Add('function', GetGCashFunction(11));
-        JObjectReqHeaderDetails.Add('clientId', pRecPOSTerminal."GCash Client ID");
-        JObjectReqHeaderDetails.Add('clientSecret', pRecPOSTerminal."GCash Client Secret");
-        JObjectReqHeaderDetails.Add('reqTime', TypeHelper.GetCurrUTCDateTimeISO8601());
-        JObjectReqHeaderDetails.Add('reqMsgId', AVGPOSFunctions.AVGCreateStandardGuidFormat(pRecPOSTerminal, 'R'));// R = Refund Trans.
-
-        //Body
-        JObjectReqBodyDetails.Add('merchantId', pRecPOSTerminal."GCash Merchant ID");
-        JObjectReqBodyDetails.Add('acquirementId', pAcqID);
-        JObjectReqBodyDetails.Add('merchantTransId', MerchantTransId);
-        JObjectReqBodyDetails.Add('requestId', LSCPOSTransLineRec."Receipt No.");
-        JObjectReqBodyDetails.Add('refundAmount', JObjectRefundOrder);
-
-        JObjectReqBodyDetails.Add('refundAppliedTime', TypeHelper.GetCurrUTCDateTimeISO8601());
-        JObjectReqBodyDetails.Add('refundReason', AVGPOSSession.GetCurrGCashSelectedInfocode());
-
-
-        JObjectReqMerged.Add('head', JObjectReqHeaderDetails);
-        JObjectReqMerged.Add('body', JObjectReqBodyDetails);
-        CLEAR(JsonRequestString);
-        JObjectReqMerged.WriteTo(JsonRequestString);
-
-        JObjectRequest.Add('request', JObjectReqMerged);
-        CLEAR(SignatureString);
-        VerifiedKeyPair := GCashGenerateSignature(JsonRequestString, pRecPOSTerminal, SignatureString);
-        JObjectRequest.Add('signature', SignatureString);
-        IF VerifiedKeyPair THEN begin
-            CLEAR(EndpointString);
-            EndpointString := pRecPOSTerminal."GCash URL" + pRecPOSTerminal."Refund Transaction Endpoint";
-            IF ProcessGCashHttpWebRequest(EndpointString, JObjectRequest) THEN BEGIN
-                IF GetResponseJsonByPathText('response.body.resultInfo.resultStatus') = 'S' then begin
-                    InsertIntoGCashTransLine(11, '', LSCHttpWrapper.GetRequestAsText(), LSCHttpWrapper.ResponseText());
-                    EXIT(TRUE);
-                end else
-                    exit(false);
-            end ELSE
-                exit(false);
-        END;
-    end;
-
-    local procedure ProcessGCashHttpWebRequest(EndpointText: Text; JObjectRequest: JsonObject): Boolean
-    begin
-        ClearHttpVars;
-        LSCHttpWrapper.KeepAlive(true);
-        LSCHttpWrapper.ContentTypeFromEnum(LSCContentType::Json);
-        LSCHttpWrapper.SetHeader('User-Agent', 'AVGGCash');
-        LSCHttpWrapper.Url(EndpointText);
-        LSCHttpWrapper.Method('POST');
-        LSCHttpWrapper.RequestJson(JObjectRequest);
-        IF LSCHttpWrapper.Send() THEN
-            EXIT(TRUE)
-        ELSE
-            EXIT(FALSE);
-    end;
-
-    local procedure ProcessGCashQueryHttpWebRequest(EndpointText: Text; JObjectRequest: JsonObject): Boolean
-    begin
-        ClearHttpVarsGCashQuery;
-        LSCHttpWrapperGCashQuery.KeepAlive(true);
-        LSCHttpWrapperGCashQuery.ContentTypeFromEnum(LSCContentType::Json);
-        LSCHttpWrapperGCashQuery.SetHeader('User-Agent', 'AVGGCash');
-        LSCHttpWrapperGCashQuery.Url(EndpointText);
-        LSCHttpWrapperGCashQuery.Method('POST');
-        LSCHttpWrapperGCashQuery.RequestJson(JObjectRequest);
-        IF LSCHttpWrapperGCashQuery.Send() THEN
-            EXIT(TRUE)
-        ELSE
-            EXIT(FALSE);
-    end;
-
     local procedure GCashGenerateSignature(pJObjectRequest: Text; pRecPOSTerminal: Record "LSC POS Terminal"; var SignatureString: Text): Boolean;
     var
         txtReadPrivateKey: Text;
@@ -737,7 +778,6 @@ codeunit 50004 "AVG Http Functions"
         Sha256Digest: DotNet Sha256Digest;
         RsaDigestSigner: DotNet RsaDigestSigner;
         dataBytes: DotNet Array;
-        signatureBytes: DotNet Array;
         Encoder: DotNet Encoding;
         Convert64: DotNet Convert;
         Verified: Boolean;
@@ -788,29 +828,12 @@ codeunit 50004 "AVG Http Functions"
         EXIT(Verified);
     end;
 
-    local procedure ProcessGCashTransIDHierarchy(): Text
+    procedure InsertIntoGCashTransLine(pGCashProcessType: Integer; pAutCode: Text; pAmountDec: Decimal; pTransLineNo: Integer)
     var
-        IDString: Text;
-    begin
-        CLEAR(IDString);
-        IDString := GetResponseJsonByPathText('response.body.acquirementId');
-        IF IDString = '' then
-            IDString := GetResponseJsonByPathText('response.body.merchantTransId');
-        IF IDString = '' then
-            IDString := GetResponseJsonByPathText('response.body.transactionId');
-        EXIT(IDString);
-    end;
-
-    local procedure InsertIntoGCashTransLine(pGCashProcessType: Integer; pAutCode: Text; pRequest: Text; pResponse: Text)
-    var
-        OutStrGCashReq: OutStream;
-        OutStrGCashRes: OutStream;
         GCashTransLine: Record "AVG Trans. Line";
         GCashTransLine2: Record "AVG Trans. Line";
         intLLineNo: Integer;
         LSCPOSSession: Codeunit "LSC POS Session";
-        POSTransactionCU: Codeunit "LSC POS Transaction";
-        POSTransLineCU: Codeunit "LSC POS Trans. Lines";
         GCashProcessType: Enum "AVG Type Trans. Line";
     begin
         GCashProcessType := "AVG Type Trans. Line".FromInteger(pGCashProcessType);
@@ -822,149 +845,149 @@ codeunit 50004 "AVG Http Functions"
         GCashTransLine2.SetCurrentKey("Receipt No.", "Line No.");
         GCashTransLine2.SETRANGE("Store No.", LSCPOSSession.StoreNo());
         GCashTransLine2.SETRANGE("POS Terminal No.", LSCPOSSession.TerminalNo());
-        GCashTransLine2.SETRANGE("Receipt No.", POSTransactionCU.GetReceiptNo());
+        GCashTransLine2.SETRANGE("Receipt No.", LSCPOSTransactionCU.GetReceiptNo());
         IF GCashTransLine2.FindLast() THEN
             intLLineNo := GCashTransLine2."Line No." + 10000
         else
             intLLineNo := 10000;
 
         GCashTransLine.INIT;
-        GCashTransLine."Receipt No." := POSTransactionCU.GetReceiptNo();
+        GCashTransLine."Receipt No." := LSCPOSTransactionCU.GetReceiptNo();
         GCashTransLine."Line No." := intLLineNo;
-        GCashTransLine."Store No." := POSTransactionCU.GetStoreNo();
-        GCashTransLine."POS Terminal No." := POSTransactionCU.GetPOSTerminalNo();
+        GCashTransLine."Store No." := LSCPOSTransactionCU.GetStoreNo();
+        GCashTransLine."POS Terminal No." := LSCPOSTransactionCU.GetPOSTerminalNo();
         GCashTransLine."Trans. Date" := WorkDate();
         GCashTransLine."Trans. Time" := Time;
         GCashTransLine."Authorization Code" := pAutCode;
-        GCashTransLine."Trans. Line No." := POSTransLineCU.GetCurrentLineNo();
+        // GCashTransLine."Trans. Line No." := LSCPOSTransLineCU.GetCurrentLineNo();
+        GCashTransLine."Trans. Line No." := pTransLineNo;
+        GCashTransLine.Amount := pAmountDec;
         case GCashProcessType of
             GCashProcessType::"Retail Pay":
-                begin
-                    GCashTransLine."Process Type" := GCashTransLine."Process Type"::"Retail Pay";
-                    GCashTransLine."GCash Create Time" := GetResponseJsonByPathText('response.body.createTime');
-                    GCashTransLine."GCash Amount Currency" := GetResponseJsonByPathText('response.body.orderAmount.currency');
-                    GCashTransLine."GCash Amount" := GetResponseJsonByPathText('response.body.orderAmount.value');
-                    IF EVALUATE(GCashTransLine.Amount, GCashTransLine."GCash Amount") THEN;
-                    GCashTransLine."GCash Paid Time" := GetResponseJsonByPathText('response.body.paidTime');
-                    GCashTransLine."GCash Transaction ID" := GetResponseJsonByPathText('response.body.transactionId');
-                end;
-            // GCashProcessType::"Query Transaction":
-            //     begin
-            //         GCashTransLine."Res. Cash In/Out ID" := GetResponseJsonByPathText('res_id');
-            //         GCashTransLine."Res. Cash In/Out Code" := GetResponseJsonByPathText('res_code');
-            //         GCashTransLine."Res. Cash In/Out Message" := GetResponseJsonByPathText('res_message');
-            //         GCashTransLine."Res. Cash In Ref. No." := GetResponseJsonByPathText('res_cashin_ref');
-            //         GCashTransLine."Res. Cash In/Out Mobile No." := GetResponseJsonByPathText('res_mobileno');
-            //         IF EVALUATE(GCashTransLine."Res. Cash In/Out Amount", GetResponseJsonByPathText('res_amount')) THEN;
-            //         GCashTransLine."Res. Cash In/Out Status" := GetResponseJsonByPathText('res_status');
-            //         GCashTransLine."Res. Cash In/Out Date" := GetResponseJsonByPathText('res_date');
-            // GCashTransLine."GCash Transaction ID" := GetResponseJsonByPathText('response.body.transactionId');
-            //     end;
+                GCashTransLine."Process Type" := GCashTransLine."Process Type"::"Retail Pay";
             GCashProcessType::"Cancel Transaction":
-                begin
-                    GCashTransLine."Process Type" := GCashTransLine."Process Type"::"Cancel Transaction";
-                    GCashTransLine."GCash Cancel Time" := GetResponseJsonByPathText('response.body.cancelTime');
-                end;
+                GCashTransLine."Process Type" := GCashTransLine."Process Type"::"Cancel Transaction";
             GCashProcessType::"Refund Transaction":
-                begin
-                    GCashTransLine."Process Type" := GCashTransLine."Process Type"::"Refund Transaction";
-                    GCashTransLine."GCash Amount Currency" := GetResponseJsonByPathText('response.body.refundAmount.currency');
-                    GCashTransLine."GCash Amount" := GetResponseJsonByPathText('response.body.refundAmount.value');
-                    IF EVALUATE(GCashTransLine.Amount, GCashTransLine."GCash Amount") THEN;
-                    GCashTransLine."GCash Refund ID" := GetResponseJsonByPathText('response.body.refundId');
-                    GCashTransLine."GCash Refund Time" := GetResponseJsonByPathText('response.body.refundTime');
-                    GCashTransLine."GCash Request ID" := GetResponseJsonByPathText('response.body.requestId');
-                    GCashTransLine."GCash Short Refund ID" := GetResponseJsonByPathText('response.body.shortRefundId');
-                end;
+                GCashTransLine."Process Type" := GCashTransLine."Process Type"::"Refund Transaction";
+
         end;
+        GCashTransLine."GCash Create Time" := GetResponseJsonByPathText('response.body.createTime');
+        GCashTransLine."GCash Amount Currency" := GetResponseJsonByPathText('response.body.orderAmount.currency');
+        GCashTransLine."GCash Amount" := GetResponseJsonByPathText('response.body.orderAmount.value');
+        GCashTransLine."GCash Paid Time" := GetResponseJsonByPathText('response.body.paidTime');
+        GCashTransLine."GCash Transaction ID" := GetResponseJsonByPathText('response.body.transactionId');
+        GCashTransLine."GCash Merchant Trans. ID" := GetResponseJsonByPathText('response.body.merchantTransId');
+        GCashTransLine."GCash Cancel Time" := GetResponseJsonByPathText('response.body.cancelTime');
+        GCashTransLine."GCash Merchant Trans. ID" := GetResponseJsonByPathText('response.body.merchantTransId');
+        GCashTransLine."GCash Amount Currency" := GetResponseJsonByPathText('response.body.refundAmount.currency');
+        GCashTransLine."GCash Amount" := GetResponseJsonByPathText('response.body.refundAmount.value');
+        GCashTransLine."GCash Refund ID" := GetResponseJsonByPathText('response.body.refundId');
+        GCashTransLine."GCash Refund Time" := GetResponseJsonByPathText('response.body.refundTime');
+        GCashTransLine."GCash Request ID" := GetResponseJsonByPathText('response.body.requestId');
+        GCashTransLine."GCash Short Refund ID" := GetResponseJsonByPathText('response.body.shortRefundId');
         GCashTransLine."GCash Result CodeId" := GetResponseJsonByPathText('response.body.resultInfo.resultCodeId');
         GCashTransLine."GCash Result Msg" := GetResponseJsonByPathText('response.body.resultInfo.resultMsg');
         GCashTransLine."GCash Result Status" := GetResponseJsonByPathText('response.body.resultInfo.resultStatus');
         GCashTransLine."GCash Result Code" := GetResponseJsonByPathText('response.body.resultInfo.resultCode');
         GCashTransLine."GCash Response Time" := GetResponseJsonByPathText('response.head.respTime');
         GCashTransLine."GCash Acquirement ID" := GetResponseJsonByPathText('response.body.acquirementId');
-        GCashTransLine."GCash Merchant Trans. ID" := GetResponseJsonByPathText('response.body.merchantTransId');
         GCashTransLine."GCash Response Signature" := GetResponseJsonByPathText('signature');
-        GCashTransLine."GCash Request".CreateOutStream(OutStrGCashReq);
-        OutStrGCashReq.Write(pRequest);
-        GCashTransLine."GCash Response".CreateOutStream(OutStrGCashRes);
-        OutStrGCashRes.Write(pResponse);
+        GCashTransLine."GCash Request" := COPYSTR(LSCHttpWrapper.GetRequestAsText(), 1, 2048);
+        GCashTransLine."GCash Response" := COPYSTR(LSCHttpWrapper.ResponseText(), 1, 2048);
         GCashTransLine.Insert();
+        // case GCashProcessType of
+        //     GCashProcessType::"Retail Pay":
+        //         begin
+        //             GCashTransLine."Process Type" := GCashTransLine."Process Type"::"Retail Pay";
+        //             GCashTransLine."GCash Create Time" := GetResponseJsonByPathText('response.body.createTime');
+        //             GCashTransLine."GCash Amount Currency" := GetResponseJsonByPathText('response.body.orderAmount.currency');
+        //             GCashTransLine."GCash Amount" := GetResponseJsonByPathText('response.body.orderAmount.value');
+        //             GCashTransLine."GCash Paid Time" := GetResponseJsonByPathText('response.body.paidTime');
+        //             GCashTransLine."GCash Transaction ID" := GetResponseJsonByPathText('response.body.transactionId');
+        //             GCashTransLine."GCash Merchant Trans. ID" := GetResponseJsonByPathText('response.body.merchantTransId');
+        //         end;
+        //     // GCashProcessType::"Query Transaction":
+        //     //     begin
+        //     //         GCashTransLine."Res. Cash In/Out ID" := GetResponseJsonByPathText('res_id');
+        //     //         GCashTransLine."Res. Cash In/Out Code" := GetResponseJsonByPathText('res_code');
+        //     //         GCashTransLine."Res. Cash In/Out Message" := GetResponseJsonByPathText('res_message');
+        //     //         GCashTransLine."Res. Cash In Ref. No." := GetResponseJsonByPathText('res_cashin_ref');
+        //     //         GCashTransLine."Res. Cash In/Out Mobile No." := GetResponseJsonByPathText('res_mobileno');
+        //     //         IF EVALUATE(GCashTransLine."Res. Cash In/Out Amount", GetResponseJsonByPathText('res_amount')) THEN;
+        //     //         GCashTransLine."Res. Cash In/Out Status" := GetResponseJsonByPathText('res_status');
+        //     //         GCashTransLine."Res. Cash In/Out Date" := GetResponseJsonByPathText('res_date');
+        //     // GCashTransLine."GCash Transaction ID" := GetResponseJsonByPathText('response.body.transactionId');
+        //     //     end;
+        //     GCashProcessType::"Cancel Transaction":
+        //         begin
+        //             GCashTransLine."Process Type" := GCashTransLine."Process Type"::"Cancel Transaction";
+        //             GCashTransLine."GCash Cancel Time" := GetResponseJsonByPathText('response.body.cancelTime');
+        //             GCashTransLine."GCash Merchant Trans. ID" := GetResponseJsonByPathText('response.body.merchantTransId');
+        //         end;
+        //     GCashProcessType::"Refund Transaction":
+        //         begin
+        //             GCashTransLine."Process Type" := GCashTransLine."Process Type"::"Refund Transaction";
+        //             GCashTransLine."GCash Amount Currency" := GetResponseJsonByPathText('response.body.refundAmount.currency');
+        //             GCashTransLine."GCash Amount" := GetResponseJsonByPathText('response.body.refundAmount.value');
+        //             GCashTransLine."GCash Refund ID" := GetResponseJsonByPathText('response.body.refundId');
+        //             GCashTransLine."GCash Refund Time" := GetResponseJsonByPathText('response.body.refundTime');
+        //             GCashTransLine."GCash Request ID" := GetResponseJsonByPathText('response.body.requestId');
+        //             GCashTransLine."GCash Short Refund ID" := GetResponseJsonByPathText('response.body.shortRefundId');
+        //         end;
+        // end;
+        // GCashTransLine."GCash Result CodeId" := GetResponseJsonByPathText('response.body.resultInfo.resultCodeId');
+        // GCashTransLine."GCash Result Msg" := GetResponseJsonByPathText('response.body.resultInfo.resultMsg');
+        // GCashTransLine."GCash Result Status" := GetResponseJsonByPathText('response.body.resultInfo.resultStatus');
+        // GCashTransLine."GCash Result Code" := GetResponseJsonByPathText('response.body.resultInfo.resultCode');
+        // GCashTransLine."GCash Response Time" := GetResponseJsonByPathText('response.head.respTime');
+        // GCashTransLine."GCash Acquirement ID" := GetResponseJsonByPathText('response.body.acquirementId');
+        // GCashTransLine."GCash Response Signature" := GetResponseJsonByPathText('signature');
+        // GCashTransLine."GCash Request" := COPYSTR(LSCHttpWrapper.GetRequestAsText(), 1, 2048);
+        // GCashTransLine."GCash Response" := COPYSTR(LSCHttpWrapper.ResponseText(), 1, 2048);
+        // GCashTransLine.Insert();
     end;
 
-    procedure GetResponseJsonByPathText(pPath: Text): Text;
+    local procedure ProcessGCashHttpWebRequest(EndpointText: Text; JObjectRequest: JsonObject): Boolean
+    begin
+        ClearHttpVars;
+        LSCHttpWrapper.KeepAlive(true);
+        LSCHttpWrapper.ContentTypeFromEnum(LSCContentType::Json);
+        LSCHttpWrapper.SetHeader('User-Agent', 'AVGGCash');
+        LSCHttpWrapper.Url(EndpointText);
+        LSCHttpWrapper.Method('POST');
+        LSCHttpWrapper.RequestJson(JObjectRequest);
+        IF LSCHttpWrapper.Send() THEN
+            EXIT(TRUE)
+        ELSE
+            EXIT(FALSE);
+    end;
+
+    local procedure ProcessGCashQueryHttpWebRequest(EndpointText: Text; JObjectRequest: JsonObject): Boolean
+    begin
+        ClearHttpVarsGCashQuery;
+        LSCHttpWrapperGCashQuery.KeepAlive(true);
+        LSCHttpWrapperGCashQuery.ContentTypeFromEnum(LSCContentType::Json);
+        LSCHttpWrapperGCashQuery.SetHeader('User-Agent', 'AVGGCash');
+        LSCHttpWrapperGCashQuery.Url(EndpointText);
+        LSCHttpWrapperGCashQuery.Method('POST');
+        LSCHttpWrapperGCashQuery.RequestJson(JObjectRequest);
+        IF LSCHttpWrapperGCashQuery.Send() THEN
+            EXIT(TRUE)
+        ELSE
+            EXIT(FALSE);
+    end;
+
+    local procedure ProcessGCashTransIDHierarchy(): Text
     var
-        JTokenLocal: JsonToken;
-        ResponseText: Text;
+        IDString: Text;
     begin
-
-        CLEAR(ResponseText);
-        JTokenLocal := LSCHttpWrapper.GetResponseJsonByPath(pPath);
-        IF JTokenLocal.WriteTo(ResponseText) then BEGIN
-            IF ResponseText.Contains('null') THEN
-                ResponseText := ResponseText.Replace('null', '');
-            IF ResponseText.Contains('"') THEN
-                ResponseText := ResponseText.Replace('"', '');
-        END ELSE
-            ResponseText := '';
-        EXIT(ResponseText);
-    end;
-
-    procedure GetGCashFunction(GCashFunc: Integer): Text;
-    var
-        GCashFunctionTypes: Enum "AVG Type Trans. Line";
-        txtFunctionName: Text;
-    begin
-        CLEAR(txtFunctionName);
-        GCashFunctionTypes := "AVG Type Trans. Line".FromInteger(GCashFunc);
-        case GCashFunctionTypes of
-            GCashFunctionTypes::"HeartBeat Check":
-                txtFunctionName := 'gcash.common.heart.beat';
-            GCashFunctionTypes::"Retail Pay":
-                txtFunctionName := 'gcash.acquiring.retail.pay';
-            GCashFunctionTypes::"Query Transaction":
-                txtFunctionName := 'gcash.acquiring.order.query';
-            GCashFunctionTypes::"Cancel Transaction":
-                txtFunctionName := 'gcash.acquiring.order.cancel';
-            GCashFunctionTypes::"Refund Transaction":
-                txtFunctionName := 'gcash.acquiring.order.refund';
-        end;
-        EXIT(txtFunctionName);
-    end;
-
-    procedure GCashQueryGetResponseJsonByPathText(pPath: Text): Text;
-    var
-        JTokenLocal: JsonToken;
-        ResponseText: Text;
-    begin
-        CLEAR(ResponseText);
-        JTokenLocal := LSCHttpWrapperGCashQuery.GetResponseJsonByPath(pPath);
-        IF JTokenLocal.WriteTo(ResponseText) then BEGIN
-            IF ResponseText.Contains('null') THEN
-                ResponseText := ResponseText.Replace('null', '');
-            IF ResponseText.Contains('"') THEN
-                ResponseText := ResponseText.Replace('"', '');
-        END ELSE
-            ResponseText := '';
-        EXIT(ResponseText);
-    end;
-
-    procedure ClearHttpVars()
-    begin
-        LSCHttpWrapper.ClearClient();
-        LSCHttpWrapper.ClearErrors();
-        LSCHttpWrapper.ClearFlags();
-        LSCHttpWrapper.ClearHeaders();
-        LSCHttpWrapper.ClearVars();
-    end;
-
-    procedure ClearHttpVarsGCashQuery()
-    begin
-        LSCHttpWrapperGCashQuery.ClearClient();
-        LSCHttpWrapperGCashQuery.ClearErrors();
-        LSCHttpWrapperGCashQuery.ClearFlags();
-        LSCHttpWrapperGCashQuery.ClearHeaders();
-        LSCHttpWrapperGCashQuery.ClearVars();
+        CLEAR(IDString);
+        IDString := GetResponseJsonByPathText('response.body.acquirementId');
+        IF IDString = '' then
+            IDString := GetResponseJsonByPathText('response.body.merchantTransId');
+        IF IDString = '' then
+            IDString := GetResponseJsonByPathText('response.body.transactionId');
+        EXIT(IDString);
     end;
 
 }

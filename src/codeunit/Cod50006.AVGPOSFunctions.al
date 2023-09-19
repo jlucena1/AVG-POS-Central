@@ -4,9 +4,9 @@ codeunit 50006 "AVG POS Functions"
         AVGPOSSession: Codeunit "AVG POS Session";
         TypeHelper: Codeunit "Type Helper";
 
-    procedure AVGPOSMessage(pTxtMessage: Text)
+    procedure AVGCreateStandardGuidFormat(pRecPOSTerminal: Record "LSC POS Terminal"; pTxtMode: Text): Text;
     begin
-        AVGPOSSession.AVGPOSMessages(pTxtMessage);
+        EXIT(COPYSTR(DELCHR(pTxtMode + pRecPOSTerminal."Store No." + pRecPOSTerminal."No." + CreateGuid() + TypeHelper.GetCurrUTCDateTimeISO8601(), '=', ':{}-'), 1, 64));
     end;
 
     procedure AVGPOSErrorMessage(pTxtMessage: Text)
@@ -14,8 +14,8 @@ codeunit 50006 "AVG POS Functions"
         AVGPOSSession.AVGPOSErrorMessages(pTxtMessage);
     end;
 
-    procedure AVGCreateStandardGuidFormat(pRecPOSTerminal: Record "LSC POS Terminal"; pTxtMode: Text): Text;
+    procedure AVGPOSMessage(pTxtMessage: Text)
     begin
-        EXIT(COPYSTR(DELCHR(pTxtMode + pRecPOSTerminal."Store No." + pRecPOSTerminal."No." + CreateGuid() + TypeHelper.GetCurrUTCDateTimeISO8601(), '=', ':{}-'), 1, 64));
+        AVGPOSSession.AVGPOSMessages(pTxtMessage);
     end;
 }

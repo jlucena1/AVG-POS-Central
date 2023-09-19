@@ -304,11 +304,6 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
                         ApplicationArea = All;
                         ToolTip = 'Specifies the value of the GCash Order Title field.';
                     }
-                    field("GCash Exec. Payment Per Amt."; Rec."GCash Exec. Payment Per Amt.")
-                    {
-                        ApplicationArea = All;
-                        ToolTip = 'Specifies the value of the GCash Exec. Payment Per Amt. field.';
-                    }
                     field("GCash Reason Code"; Rec."GCash Reason Code")
                     {
                         ApplicationArea = All;
@@ -339,6 +334,12 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
         IF Rec."GCash Public Key".HasValue THEN
             InStrPublicKey.Read(GCashPublicKey);
     end;
+
+    var
+        InStr: InStream;
+        OutStr: OutStream;
+        GCashPrivateKey: Text;
+        GCashPublicKey: Text;
 
     local procedure UploadKey(DialogTitle: Text; Mode: Integer): Text;
     var
@@ -374,10 +375,4 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
             EXIT(ReadTextValue);
         END;
     end;
-
-    var
-        InStr: InStream;
-        OutStr: OutStream;
-        GCashPrivateKey: Text;
-        GCashPublicKey: Text;
 }

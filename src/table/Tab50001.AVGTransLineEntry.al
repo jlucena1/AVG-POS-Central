@@ -234,15 +234,15 @@ table 50001 "AVG Trans. Line Entry"
         {
 
         }
-        field(58; "GCash Result Msg"; Text[60])
+        field(58; "GCash Result Msg"; Text[150])
         {
 
         }
-        field(59; "GCash Request"; Blob)
+        field(59; "GCash Request"; Text[2048])
         {
 
         }
-        field(60; "GCash Response"; Blob)
+        field(60; "GCash Response"; Text[2048])
         {
 
         }
@@ -275,7 +275,7 @@ table 50001 "AVG Trans. Line Entry"
         {
 
         }
-        field(68; "GCash Refund ID"; Text[32])
+        field(68; "GCash Refund ID"; Text[64])
         {
 
         }
@@ -283,11 +283,11 @@ table 50001 "AVG Trans. Line Entry"
         {
 
         }
-        field(70; "GCash Request ID"; Text[60])
+        field(70; "GCash Request ID"; Text[64])
         {
 
         }
-        field(71; "GCash Short Refund ID"; Text[20])
+        field(71; "GCash Short Refund ID"; Text[64])
         {
 
         }
