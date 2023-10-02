@@ -137,7 +137,7 @@ page 50004 "GCash Trans. Line Entries"
                 {
                     ToolTip = 'Specifies the value of the Trans. Time field.';
                 }
-                field("Authorization Code"; Rec."Authorization Code")
+                field("Authorization Code"; Rec."GCash Authorization Code")
                 {
                     ToolTip = 'Specifies the value of the Authorization Code field.';
                 }

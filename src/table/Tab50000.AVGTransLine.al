@@ -290,7 +290,7 @@ table 50000 "AVG Trans. Line"
         {
 
         }
-        field(72; "Authorization Code"; Text[80])
+        field(72; "GCash Authorization Code"; Text[80])
         {
 
         }
