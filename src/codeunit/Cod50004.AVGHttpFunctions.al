@@ -858,7 +858,7 @@ codeunit 50004 "AVG Http Functions"
         GCashTransLine."POS Terminal No." := LSCPOSTransactionCU.GetPOSTerminalNo();
         GCashTransLine."Trans. Date" := WorkDate();
         GCashTransLine."Trans. Time" := Time;
-        GCashTransLine."Authorization Code" := pAutCode;
+        GCashTransLine."GCash Authorization Code" := pAutCode;
         // GCashTransLine."Trans. Line No." := LSCPOSTransLineCU.GetCurrentLineNo();
         GCashTransLine."Trans. Line No." := pTransLineNo;
         GCashTransLine.Amount := pAmountDec;

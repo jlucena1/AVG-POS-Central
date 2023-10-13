@@ -1,7 +1,7 @@
 codeunit 50003 "AVG Event Subs. Trans."
 {
     var
-        POSControlInteface: Codeunit "LSC POS Control Interface";
+        POSControlInterface: Codeunit "LSC POS Control Interface";
         POSSession: Codeunit "LSC POS Session";
         POSGUI: Codeunit "LSC POS GUI";
         POSTransactionCU: Codeunit "LSC POS Transaction";
@@ -28,7 +28,7 @@ codeunit 50003 "AVG Event Subs. Trans."
         CASE NumpadProcess of
             50100:
                 begin
-                    InputValue := POSControlInteface.GetInputText(POSSession.POSNumpadInputID());
+                    InputValue := POSControlInterface.GetInputText(POSSession.POSNumpadInputID());
                     IF InputValue = '' then
                         EXIT;
                     decLAmount := 0;
@@ -41,13 +41,14 @@ codeunit 50003 "AVG Event Subs. Trans."
                     AVGPOSSession.ClearCurrCashInMobileNo();
                     AVGPOSSession.SetCurrCashInAmount(txtLAmount);
                     POSTransactionCU.OpenNumericKeyboard(MobileNoCaption, 0, '', 50101);
+                    IsHandled := True;
                 end;
             50101:
                 begin
                     decLAmount := 0;
                     CLEAR(txtLAmount);
                     CLEAR(txtLMobile);
-                    InputValue := POSControlInteface.GetInputText(POSSession.POSNumpadInputID());
+                    InputValue := POSControlInterface.GetInputText(POSSession.POSNumpadInputID());
                     IF InputValue = '' then
                         EXIT;
 
@@ -64,10 +65,11 @@ codeunit 50003 "AVG Event Subs. Trans."
                         EXIT;
 
                     AVGFunctions.ValidateAllEasy(1, decLAmount, txtLAmount, '', txtLMobile);
+                    IsHandled := True;
                 end;
             50102:
                 begin
-                    InputValue := POSControlInteface.GetInputText(POSSession.POSNumpadInputID());
+                    InputValue := POSControlInterface.GetInputText(POSSession.POSNumpadInputID());
                     IF InputValue = '' then
                         EXIT;
                     decLAmount := 0;
@@ -80,10 +82,11 @@ codeunit 50003 "AVG Event Subs. Trans."
                     AVGPOSSession.ClearCurrPayQRAmount();
                     AVGPOSSession.SetCurrPayQRAmount(txtLAmount);
                     POSGui.OpenAlphabeticKeyboard(AllEasyScanQRCodeCaption, '', AVGPOSSession.GetHideKeybValues, '#PAYQR', 20);
+                    IsHandled := True;
                 end;
             50103:
                 begin
-                    InputValue := POSControlInteface.GetInputText(POSSession.POSNumpadInputID());
+                    InputValue := POSControlInterface.GetInputText(POSSession.POSNumpadInputID());
                     IF InputValue = '' then
                         EXIT;
                     decLAmount := 0;
@@ -96,9 +99,9 @@ codeunit 50003 "AVG Event Subs. Trans."
                     AVGPOSSession.ClearCurrGCashPayQRAmount();
                     AVGPOSSession.SetGCashCurrPayQRAmount(txtLAmount);
                     POSGui.OpenAlphabeticKeyboard(GCashScanQRCodeCaption, '', AVGPOSSession.GetHideKeybValues, '#GCASHPAYQR', 64);
+                    IsHandled := True;
                 end;
         END;
-        IsHandled := True;
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnAfterPostPOSTransaction, '', false, false)]
@@ -108,71 +111,6 @@ codeunit 50003 "AVG Event Subs. Trans."
         AVGHttpFunctions.ClearHttpVars();
         AVGHttpFunctions.ClearHttpVarsGCashQuery();
     end;
-
-
-    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnAfterInsertPaymentLine, '', false, false)]
-    // local procedure OnAfterInsertPaymentLine(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var CurrInput: Text; var TenderTypeCode: Code[10]; var SkipCommit: Boolean);
-    // var
-    //     LSCPOSTerminalRec: Record "LSC POS Terminal";
-    // begin
-    //     IF NOT LSCPOSTerminalRec.Get(POSTransaction."POS Terminal No.") then
-    //         EXIT;
-    //     IF NOT LSCPOSTerminalRec."Enable GCash Pay" then
-    //         EXIT;
-    //     if TenderTypeCode = LSCPOSTerminalRec."GCash Tender Type" then
-    //         SkipCommit := true;
-    // end;
-
-    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnAfterVoidPostedTransaction, '', false, false)]
-    // local procedure OnAfterVoidPostedTransaction(var Rec: Record "LSC POS Transaction");
-    // var
-    //     GCashTransLineEntry: Record "AVG Trans. Line Entry"
-    //     TxtAmount: Text;
-    // begin
-    //     LSCPOSTransLineLoc.RESET;
-    //     LSCPOSTransLineLoc.SETRANGE("Receipt No.", Rec."Receipt No.");
-    //     LSCPOSTransLineLoc.SETRANGE("Entry Type", LSCPOSTransLineLoc."Entry Type"::Payment);
-    //     IF NOT LSCPOSTransLineLoc.FINDFIRST then
-    //         EXIT;
-    //     CLEAR(TxtAmount);
-    //     TxtAmount := FORMAT(LSCPOSTransLineLoc.Amount);
-    //     AVGPOSSession.ClearCurrGCashRefundAmount();
-    //     AVGPOSSession.SetCurrGCashRefundAmount(TxtAmount);
-    //     AVGFunctions.ValidateGCashApi(11);
-    // end;
-    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnLookupResultVoidTR, '', false, false)]
-    // local procedure OnLookupResultVoidTR(var Command: Code[20]; var keyValue: Code[30]; var LookupRecID: RecordId; var IsHandled: Boolean; var IsExit: Boolean);
-    // begin
-    //     MESSAGE('Command: %1\KeyValue: %2\LookupRecID: %3\IsHandled: %4\IsExit: %5', Command, keyValue, LookupRecID, IsHandled, IsExit);
-    // end;
-
-    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnVoidTransaction, '', false, false)]
-    // local procedure OnVoidTransaction(var POSTrans: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line");
-    // begin
-    // end;
-
-    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Refund Mgt.", OnAfterInfocodePosTransLineBufferInsert, '', false, false)]
-    // local procedure OnAfterInfocodePosTransLineBufferInsert(var POSTransLineBuffer: Record "LSC POS Trans. Line");
-    // var
-    //     GCashTransLineEntry: Record "AVG Trans. Line Entry";
-    //     TxtAmount: Text;
-    // begin
-    //     GCashTransLineEntry.RESET;
-    //     GCashTransLineEntry.SETRANGE("Store No.", POSTransLineBuffer."Orig. Trans. Store");
-    //     GCashTransLineEntry.SETRANGE("POS Terminal No.", POSTransLineBuffer."Orig. Trans. Pos");
-    //     GCashTransLineEntry.SETRANGE("Transaction No.", POSTransLineBuffer."Orig. Trans. No.");
-    //     GCashTransLineEntry.SETRANGE("Process Type", GCashTransLineEntry."Process Type"::"Retail Pay");
-    //     IF NOT GCashTransLineEntry.FINDFIRST then
-    //         EXIT;
-
-    //     CLEAR(TxtAmount);
-    //     TxtAmount := FORMAT(GCashTransLineEntry."GCash Amount");
-    //     AVGPOSSession.ClearCurrGCashRefundAmount();
-    //     AVGPOSSession.SetCurrGCashRefundAmount(TxtAmount);
-    //     AVGPOSSession.ClearCurrGCashRefundAcqID();
-    //     AVGPOSSession.SetCurrGCashCancelAcqID(GCashTransLineEntry."GCash Acquirement ID");
-    //     AVGFunctions.ValidateGCashApi(11);
-    // end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Infocode Utility", OnAfterTypeSelection, '', false, false)]
     local procedure OnAfterTypeSelection(Input: Text; var SubCodeRec: Record "LSC Information Subcode"; var InfoCodeRec: Record "LSC Infocode"; var ErrorTxt: Text);
@@ -247,43 +185,46 @@ codeunit 50003 "AVG Event Subs. Trans."
             '#CASHOUTREFNO':
                 begin
                     IF ResultOK THEN BEGIN
-                        InputValue := POSControlInteface.GetInputText(POSSession.POSKeyboardInputID());
+                        InputValue := POSControlInterface.GetInputText(POSSession.POSKeyboardInputID());
                         AVGFunctions.ValidateAllEasy(3, 0, '', InputValue, '');
                     END ELSE
                         POSTransactionCU.PosMessage(InvalidCashOutRefCaption);
+                    IsHandled := True;
                 end;
             '#PAYQR':
                 begin
                     if ResultOK THEN BEGIN
-                        InputValue := POSControlInteface.GetInputText(POSSession.POSKeyboardInputID());
+                        InputValue := POSControlInterface.GetInputText(POSSession.POSKeyboardInputID());
                         AVGPOSSession.ClearCurrPayQRCode();
                         AVGPOSSession.SetCurrPayQRCode(InputValue);
                         AVGFunctions.ValidateAllEasy(5, 0, '', '', '');
                     END ELSE
                         POSTransactionCU.PosMessage(InvalidQRcodeCaption);
+                    IsHandled := True;
                 end;
             '#GCASHPAYQR':
                 begin
                     if ResultOK THEN BEGIN
-                        InputValue := POSControlInteface.GetInputText(POSSession.POSKeyboardInputID());
+                        InputValue := POSControlInterface.GetInputText(POSSession.POSKeyboardInputID());
                         AVGPOSSession.ClearCurrGCashPayQRCode();
                         AVGPOSSession.SetCurrGCashPayQRCode(InputValue);
                         AVGFunctions.ValidateGCashApi(8);
                     END ELSE
                         POSTransactionCU.PosMessage(InvalidQRcodeCaption);
+                    IsHandled := True;
                 end;
             '#GCASHCANCEL':
                 begin
                     if ResultOK THEN BEGIN
-                        InputValue := POSControlInteface.GetInputText(POSSession.POSKeyboardInputID());
+                        InputValue := POSControlInterface.GetInputText(POSSession.POSKeyboardInputID());
                         AVGPOSSession.ClearCurrGCashCancelAcqID();
                         AVGPOSSession.SetCurrGCashCancelAcqID(InputValue);
                         AVGFunctions.ValidateGCashApi(10);
                     END ELSE
                         POSTransactionCU.PosMessage(InvalidQRcodeCaption);
+                    IsHandled := True;
                 end;
         END;
-        IsHandled := True;
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnVoidLine, '', false, false)]
@@ -311,7 +252,6 @@ codeunit 50003 "AVG Event Subs. Trans."
     begin
         GCashTransLine.Reset();
         GCashTransLine.SetRange("Receipt No.", POSTransLine."Receipt No.");
-        // GCashTransLine.SetRange("Trans. Line No.", POSTransLine."Line No.");
         GCashTransLine.Setrange("Process Type", GCashTransLine."Process Type"::"Retail Pay");
         IF GCashTransLine.FindFirst() then begin
             AVGPOSSession.ClearCurrGCashCancelAcqID();
