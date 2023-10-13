@@ -17,6 +17,7 @@ codeunit 50005 "AVG POS Session"
         CurrGCashRefundAcqID: Text;
         CurrGCashSelectedInfocode: Text;
         CurrGCashRefundAmount: Text;
+        CurrLoyaltyTenderType: Code[20];
 
     procedure AVGPOSErrorMessages(pTxt: Text)
     begin
@@ -56,6 +57,7 @@ codeunit 50005 "AVG POS Session"
         ClearCurrPartnerRefNo();
         ClearCurrPayQRAmount();
         ClearCurrPayQRCode();
+        ClearLoyaltyCurrTenderType();
     end;
 
     procedure ClearCurrAuthToken()
@@ -246,5 +248,20 @@ codeunit 50005 "AVG POS Session"
     procedure SetGCashCurrPayQRAmount(var pTxtPayQRAmount: Text)
     begin
         CurrGCashPayQRAmountText := pTxtPayQRAmount;
+    end;
+
+    procedure ClearLoyaltyCurrTenderType()
+    begin
+        CurrLoyaltyTenderType := '';
+    end;
+
+    procedure SetCurrLoyaltyCurrTenderType(pTxtTenderType: Code[20])
+    begin
+        CurrLoyaltyTenderType := pTxtTenderType;
+    end;
+
+    procedure GetCurrLoyaltyCurrTenderType(): Code[20];
+    begin
+        EXIT(CurrLoyaltyTenderType);
     end;
 }

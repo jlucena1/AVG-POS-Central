@@ -6,7 +6,7 @@ codeunit 50002 "AVG Functions"
         GlobalPOSMenuLineTemp: Record "LSC POS Menu Line" temporary;
         IncExp: Record "LSC Income/Expense Account";
         TenderType: Record "LSC Tender Type";
-        POSSession: Codeunit "LSC POS Session";
+        LSCPOSSession: Codeunit "LSC POS Session";
         LSCPOSTransactionCU: Codeunit "LSC POS Transaction";
         POSTransLineCU: Codeunit "LSC POS Trans. Lines";
         AVGPOSSession: Codeunit "AVG POS Session";
@@ -169,25 +169,6 @@ codeunit 50002 "AVG Functions"
         EXIT(bolOK);
     end;
 
-    // procedure GCashRetailPay(pRecPOSTerminal: Record "LSC POS Terminal")
-    // begin
-    //     AVGHttpFunctions.GCashRetailPay(pRecPOSTerminal, TRUE);
-    // end;
-
-    // procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
-    // begin
-    //     AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
-    // end;
-
-    // procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
-    // begin
-    //     AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
-    // end;
-
-    // procedure GCashHeartBeatCheck(pRecPOSTerminal: Record "LSC POS Terminal")
-    // begin
-    //     AVGHttpFunctions.GCashHeartBeatCheck(pRecPOSTerminal, TRUE);
-    // end;
     Procedure SetGlobalLSCPOSMenuLine(pLSCPOSMenuLine: Record "LSC POS Menu Line")
     begin
         GlobalPOSMenuLineTemp.RESET;
@@ -210,12 +191,12 @@ codeunit 50002 "AVG Functions"
         PayQRInvalidAmountErrMsg: Label 'Invalid Amount.\Input must be Numbers.\\Please Try Again.';
         PayQRAmountErrMsg: Label 'Exceeded Amount not Allowed.\\Transaction will not Proceed.';
     begin
-        POSTermLocal.GET(POSSession.TerminalNo());
+        POSTermLocal.GET(LSCPOSSession.TerminalNo());
         AllEasyAPITrigger := "AVG Type Trans. Line".FromInteger(pIntAllEasyAPITrigger);
         CASE AllEasyAPITrigger OF
             AllEasyAPITrigger::"Cash In Inquire":
                 begin
-                    POSTermLocal.GET(POSSession.TerminalNo());
+                    POSTermLocal.GET(LSCPOSSession.TerminalNo());
                     LSCIncExpLocal.GET(POSTermLocal."Store No.", POSTermLocal."AE Cash In Inc. Acc.");
                     IF LSCIncExpLocal."AE Minimum Amount to Accept" = 0 THEN BEGIN
                         AVGPOSFunctions.AVGPOSErrorMessage(STRSUBSTNO(IncExpAccountErrMsg, LSCIncExpLocal.FIELDCAPTION("AE Minimum Amount to Accept")));
@@ -263,7 +244,7 @@ codeunit 50002 "AVG Functions"
                     end;
 
                     recLAllEasyTransLine.RESET;
-                    recLAllEasyTransLine.SETRANGE("Store No.", POSSession.StoreNo());
+                    recLAllEasyTransLine.SETRANGE("Store No.", LSCPOSSession.StoreNo());
                     recLAllEasyTransLine.SETRANGE("Process Type", recLAllEasyTransLine."Process Type"::"Pay QR Inquire");
                     recLAllEasyTransLine.SETRANGE("Res. PayQR Code", AVGPOSSession.GetCurrPayQRCode());
                     IF recLAllEasyTransLine.FINDFIRST then begin
@@ -320,7 +301,7 @@ codeunit 50002 "AVG Functions"
                         pDecAmount,
                         txtLRefNo,
                         pRecPOSTerminal."No.",
-                        POSSession.StaffID())
+                        LSCPOSSession.StaffID())
                      then begin
                         LSCPOSTransactionCU.SetCurrInput(pTxtAmount);
                         LSCPOSTransactionCU.IncExpPressed(pRecPOSTerminal."AE Cash In Inc. Acc.");
@@ -340,7 +321,7 @@ codeunit 50002 "AVG Functions"
                         pDecAmount,
                         txtLRefNo,
                         pRecPOSTerminal."No.",
-                        POSSession.StaffID())
+                        LSCPOSSession.StaffID())
                     then begin
                         InsertIntoAllEasyTransLine(AllEasyAPITrigger, pDecAmount);
                         txtLScreenDisplayValue := TextSaveCI;
@@ -357,7 +338,7 @@ codeunit 50002 "AVG Functions"
                         pTxtCORefNo,
                         txtLRefNo,
                         pRecPOSTerminal."No.",
-                        POSSession.StaffID(), pTxtAmount, pRecPOSTerminal)
+                        LSCPOSSession.StaffID(), pTxtAmount, pRecPOSTerminal)
                     then begin
                         LSCPOSTransactionCU.SetCurrInput(pTxtAmount);
                         LSCPOSTransactionCU.IncExpPressed(pRecPOSTerminal."AE Cash Out Exp. Acc.");
@@ -376,7 +357,7 @@ codeunit 50002 "AVG Functions"
                         pTxtCORefNo,
                         txtLRefNo,
                         pRecPOSTerminal."No.",
-                        POSSession.StaffID())
+                        LSCPOSSession.StaffID())
                     THEN begin
                         InsertIntoAllEasyTransLine(AllEasyAPITrigger, pDecAmount);
                         txtLScreenDisplayValue := TextSaveCO;
@@ -431,7 +412,7 @@ codeunit 50002 "AVG Functions"
 
         CLEAR(bolResult);
         GCashTransType := "AVG Type Trans. Line".FromInteger(pIntGCashAPITrigger);
-        POSTermLocal.Get(POSSession.TerminalNo());
+        POSTermLocal.Get(LSCPOSSession.TerminalNo());
         CASE GCashTransType of
             GCashTransType::"Retail Pay":
                 begin
@@ -471,8 +452,8 @@ codeunit 50002 "AVG Functions"
 
         AllEasyTransLine2.RESET;
         AllEasyTransLine2.SetCurrentKey("Receipt No.", "Line No.");
-        AllEasyTransLine2.SETRANGE("Store No.", POSSession.StoreNo());
-        AllEasyTransLine2.SETRANGE("POS Terminal No.", POSSession.TerminalNo());
+        AllEasyTransLine2.SETRANGE("Store No.", LSCPOSSession.StoreNo());
+        AllEasyTransLine2.SETRANGE("POS Terminal No.", LSCPOSSession.TerminalNo());
         AllEasyTransLine2.SETRANGE("Receipt No.", LSCPOSTransactionCU.GetReceiptNo());
         IF AllEasyTransLine2.FindLast() THEN
             intLLineNo := AllEasyTransLine2."Line No." + 10000
@@ -637,5 +618,375 @@ codeunit 50002 "AVG Functions"
                     end;
                 end;
         end;
+    end;
+
+    procedure ValidateLoyalty(pIntLoyaltyAPITrigger: Integer; CardNo: Text; Amount: Text): Boolean;
+    var
+        LoyaltyTransType: Enum "AVG Type Trans. Line";
+        LSCPOSTerminalRec: Record "LSC POS Terminal";
+        LoyaltyErrMsg: Label 'Invalid Loyalty Member Card Number.\Please Try Again.';
+        LoyReq: Text;
+        LoyRes: Text;
+    begin
+        CLEAR(LoyReq);
+        CLEAR(LoyRes);
+        IF NOT LSCPOSTerminalRec.Get(LSCPOSSession.TerminalNo()) THEN
+            EXIT(FALSE);
+
+        IF NOT LSCPOSTerminalRec."Enable Loyalty" then
+            EXIT(FALSE);
+
+        IF LSCPOSTerminalRec."Loyalty Url" = '' then
+            EXIT(FALSE);
+
+        IF NOT IsValidInput(CardNo, '^[a-zA-z0-9 ]*$') then begin
+            AVGPOSFunctions.AVGPOSErrorMessage(LoyaltyErrMsg);
+            EXIT(false);
+        end;
+        LoyaltyTransType := "AVG Type Trans. Line".FromInteger(pIntLoyaltyAPITrigger);
+        case LoyaltyTransType of
+            LoyaltyTransType::"Loyalty Balance Inquiry":
+                AVGHttpFunctions.ProcessLoyaltyAPI(pIntLoyaltyAPITrigger, LSCPOSTerminalRec."Loyalty Url", CardNo, LoyReq, LoyRes);
+            LoyaltyTransType::"Loyalty Add Member":
+                begin
+                    IF AVGHttpFunctions.ProcessLoyaltyAPI(pIntLoyaltyAPITrigger, LSCPOSTerminalRec."Loyalty Url", CardNo, LoyReq, LoyRes) then begin
+                        InsertIntoLoyaltyTransLine(pIntLoyaltyAPITrigger, CardNo, LoyReq, LoyRes);
+                        IF LoyaltyTransType = LoyaltyTransType::"Loyalty Add Member" THEN
+                            LSCPOSTransactionCU.SetFunctionMode('ITEM');
+                    end;
+                end;
+            LoyaltyTransType::"Loyalty Redeem Points":
+                begin
+                    if LSCPOSSession.GetValue('LOYMEMBERCARD') = '' then begin
+                        AVGPOSFunctions.AVGPOSErrorMessage('Loyalty Member must be Added.');
+                        EXIT(FALSE);
+                    end;
+                    LSCPOSTransactionCU.SetCurrInput(Amount);
+                    LSCPOSTransactionCU.TenderKeyPressed(AVGPOSSession.GetCurrLoyaltyCurrTenderType());
+                end;
+        end;
+    end;
+
+    local procedure IsValidInput(StringText: Text; PatternText: Text): Boolean;
+    var
+        CustRegex: DotNet Regex;
+        Match: Boolean;
+    begin
+        CLEAR(CustRegex);
+        CustRegex := CustRegex.Regex(StrSubstNo('%1', PatternText));
+        Match := CustRegex.IsMatch(StringText);
+        EXIT(Match);
+    end;
+
+    procedure InsertIntoLoyaltyTransLine(pIntLoyaltyAPITrigger: Integer; CardNo: Text; pLoyReq: Text; pLoyRes: Text)
+    var
+        LoyaltyTransType: Enum "AVG Type Trans. Line";
+        LoyaltyTransLine: Record "AVG Trans. Line";
+        LoyaltyTransLine2: Record "AVG Trans. Line";
+        intLLineNo: Integer;
+        CardNumberLast4: Text;
+        FullName: Text;
+        Balance: Decimal;
+        LastVisited: Text;
+    begin
+        intLLineNo := 0;
+        IF NOT LoyaltyTransLine2.RecordLevelLocking then
+            LoyaltyTransLine2.LockTable(TRUE, TRUE);
+
+        LoyaltyTransLine2.RESET;
+        LoyaltyTransLine2.SetCurrentKey("Receipt No.", "Line No.");
+        LoyaltyTransLine2.SETRANGE("Store No.", LSCPOSSession.StoreNo());
+        LoyaltyTransLine2.SETRANGE("POS Terminal No.", LSCPOSSession.TerminalNo());
+        LoyaltyTransLine2.SETRANGE("Receipt No.", LSCPOSTransactionCU.GetReceiptNo());
+        IF LoyaltyTransLine2.FindLast() THEN
+            intLLineNo := LoyaltyTransLine2."Line No." + 10000
+        else
+            intLLineNo := 10000;
+        LoyaltyTransLine.INIT;
+        LoyaltyTransLine."Receipt No." := LSCPOSTransactionCU.GetReceiptNo();
+        LoyaltyTransLine."Line No." := intLLineNo;
+        LoyaltyTransLine."Store No." := LSCPOSTransactionCU.GetStoreNo();
+        LoyaltyTransLine."POS Terminal No." := LSCPOSTransactionCU.GetPOSTerminalNo();
+        LoyaltyTransLine."Trans. Date" := WorkDate();
+        LoyaltyTransLine."Trans. Time" := Time;
+        LoyaltyTransLine."Loyalty Request" := pLoyReq;
+        LoyaltyTransLine."Loyalty Response" := pLoyRes;
+        LoyaltyTransType := "AVG Type Trans. Line".FromInteger(pIntLoyaltyAPITrigger);
+        CLEAR(CardNumberLast4);
+        CardNumberLast4 := CardNo;
+        AVGHttpFunctions.GetLast4DigitsLoyCardNo(CardNumberLast4);
+        CLEAR(FullName);
+        CLEAR(Balance);
+        CLEAR(LastVisited);
+        FullName := AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].first_name');
+        FullName += ' ' + AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].middle_name');
+        FullName += ' ' + AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].last_name');
+        IF EVALUATE(Balance, AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].balance')) THEN;
+        LastVisited := AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].last_visit');
+        LoyaltyTransLine."Loyalty Member Full Name" := FullName;
+        LoyaltyTransLine."Loyalty Member Balance" := Balance;
+        LoyaltyTransLine."Loyalty Card Number" := CardNo;
+        LoyaltyTransLine."Loyalty Card Number Last 4" := CardNumberLast4;
+        LoyaltyTransLine."Loyalty Member Last Visited" := LastVisited;
+        case LoyaltyTransType of
+            LoyaltyTransType::"Loyalty Add Member":
+                LoyaltyTransLine."Process Type" := LoyaltyTransType::"Loyalty Add Member";
+            LoyaltyTransType::"Loyalty Earn Points":
+                begin
+                    LoyaltyTransLine."Process Type" := LoyaltyTransType::"Loyalty Earn Points";
+                    IF EVALUATE(LoyaltyTransLine."Loyalty Points Earned", AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].points_earned')) THEN;
+                end;
+            LoyaltyTransType::"Loyalty Redeem Points":
+                begin
+                    LoyaltyTransLine."Process Type" := LoyaltyTransType::"Loyalty Redeem Points";
+                    IF EVALUATE(LoyaltyTransLine."Loyalty Points Earned", AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].points_redeemed')) THEN;
+                end;
+        end;
+        LoyaltyTransLine.Insert;
+    end;
+
+    procedure InsertIntoLoyaltyTransLineEntry(TransactionHeader: Record "LSC Transaction Header"; pIntLoyaltyAPITrigger: Integer; CardNo: Text; pLoyReq: Text; pLoyRes: Text)
+    var
+        LoyaltyTransType: Enum "AVG Type Trans. Line";
+        LoyaltyTransLineEntry: Record "AVG Trans. Line Entry";
+        LoyaltyTransLineEntry2: Record "AVG Trans. Line Entry";
+        intLLineNo: Integer;
+        CardNumberLast4: Text;
+        FullName: Text;
+        Balance: Decimal;
+        LastVisited: Text;
+    begin
+        intLLineNo := 0;
+        IF NOT LoyaltyTransLineEntry2.RecordLevelLocking then
+            LoyaltyTransLineEntry2.LockTable(TRUE, TRUE);
+
+        LoyaltyTransLineEntry2.RESET;
+        LoyaltyTransLineEntry2.SetCurrentKey("Store No.", "POS Terminal No.", "Transaction No.", "Line No.");
+        LoyaltyTransLineEntry2.SETRANGE("Store No.", TransactionHeader."Store No.");
+        LoyaltyTransLineEntry2.SETRANGE("POS Terminal No.", TransactionHeader."POS Terminal No.");
+        LoyaltyTransLineEntry2.SETRANGE("Transaction No.", TransactionHeader."Transaction No.");
+        IF LoyaltyTransLineEntry2.FindLast() THEN
+            intLLineNo := LoyaltyTransLineEntry2."Line No." + 10000
+        else
+            intLLineNo := 10000;
+        LoyaltyTransLineEntry.INIT;
+        LoyaltyTransLineEntry."Receipt No." := TransactionHeader."Receipt No.";
+        LoyaltyTransLineEntry."Line No." := intLLineNo;
+        LoyaltyTransLineEntry."Store No." := TransactionHeader."Store No.";
+        LoyaltyTransLineEntry."POS Terminal No." := TransactionHeader."POS Terminal No.";
+        LoyaltyTransLineEntry."Transaction No." := TransactionHeader."Transaction No.";
+        LoyaltyTransLineEntry."Trans. Date" := TransactionHeader.Date;
+        LoyaltyTransLineEntry."Trans. Time" := TransactionHeader.Time;
+        // LoyaltyTransLineEntry."Loyalty Request" := pLoyReq;
+        // LoyaltyTransLineEntry."Loyalty Response" := pLoyRes;
+        LoyaltyTransType := "AVG Type Trans. Line".FromInteger(pIntLoyaltyAPITrigger);
+        CLEAR(CardNumberLast4);
+        CardNumberLast4 := CardNo;
+        AVGHttpFunctions.GetLast4DigitsLoyCardNo(CardNumberLast4);
+        CLEAR(FullName);
+        CLEAR(Balance);
+        CLEAR(LastVisited);
+        FullName := AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].first_name');
+        FullName += ' ' + AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].middle_name');
+        FullName += ' ' + AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].last_name');
+        IF EVALUATE(Balance, AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].balance')) THEN;
+        LastVisited := AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].last_visit');
+        LoyaltyTransLineEntry."Loyalty Member Full Name" := FullName;
+        LoyaltyTransLineEntry."Loyalty Member Balance" := Balance;
+        LoyaltyTransLineEntry."Loyalty Card Number" := CardNo;
+        LoyaltyTransLineEntry."Loyalty Card Number Last 4" := CardNumberLast4;
+        LoyaltyTransLineEntry."Loyalty Member Last Visited" := LastVisited;
+        case LoyaltyTransType of
+            LoyaltyTransType::"Loyalty Earn Points":
+                begin
+                    LoyaltyTransLineEntry."Process Type" := LoyaltyTransType::"Loyalty Earn Points";
+                    IF EVALUATE(LoyaltyTransLineEntry."Loyalty Points Earned", AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].points_earned')) THEN;
+                end;
+            LoyaltyTransType::"Loyalty Redeem Points":
+                begin
+                    LoyaltyTransLineEntry."Process Type" := LoyaltyTransType::"Loyalty Redeem Points";
+                    IF EVALUATE(LoyaltyTransLineEntry."Loyalty Points Redeemed", AVGHttpFunctions.GetResponseJsonByPathText('loyalty.data[0].points_redeemed')) THEN;
+                end;
+        end;
+        LoyaltyTransLineEntry.Insert;
+    end;
+
+    procedure CheckLoyalty(TransactionHeader: Record "LSC Transaction Header"; var pCardNo: Text; var pCardLast4: Text): Boolean;
+    var
+        LoyaltyTransLineEntry: Record "AVG Trans. Line Entry";
+    begin
+        LoyaltyTransLineEntry.RESET;
+        LoyaltyTransLineEntry.SetCurrentKey("Store No.", "POS Terminal No.", "Transaction No.", "Line No.");
+        LoyaltyTransLineEntry.SETRANGE("Store No.", TransactionHeader."Store No.");
+        LoyaltyTransLineEntry.SETRANGE("POS Terminal No.", TransactionHeader."POS Terminal No.");
+        LoyaltyTransLineEntry.SETRANGE("Transaction No.", TransactionHeader."Transaction No.");
+        LoyaltyTransLineEntry.SETFILTER("Loyalty Card Number", '<>%1', '');
+        IF LoyaltyTransLineEntry.FindFirst() then begin
+            pCardNo := LoyaltyTransLineEntry."Loyalty Card Number";
+            pCardLast4 := LoyaltyTransLineEntry."Loyalty Card Number Last 4";
+            exit(true);
+        end else
+            exit(false);
+    end;
+
+    procedure LoyaltySendTransaction(var TransactionHeader: Record "LSC Transaction Header"): Boolean;
+    var
+        LSCPOSTerminal: Record "LSC POS Terminal";
+        LoyaltyTransLineEntry: Record "AVG Trans. Line Entry";
+        LSCTransSalesEntry: Record "LSC Trans. Sales Entry";
+        LSCTransPaymentEntry: Record "LSC Trans. Payment Entry";
+        LSCBarcode: Record "LSC Barcodes";
+        LSCTenderType: Record "LSC Tender Type";
+        Item: Record Item;
+        Crypto: Codeunit "Cryptography Management";
+        Voided: Integer;
+        Refund: Integer;
+        ItemCount: Integer;
+        TenderCount: Integer;
+        Counter: Integer;
+        PromoCount: Integer;
+        Data: Text;
+        POSKey: Text;
+    begin
+        IF NOT LSCPOSTerminal.GET(TransactionHeader."POS Terminal No.") then
+            EXIT;
+
+        IF NOT LSCPOSTerminal."Enable Loyalty" then
+            EXIT;
+
+        IF LSCPOSTerminal."Loyalty Url" = '' then
+            EXIT;
+
+        IF LSCPOSTerminal."Loyalty POS No." = '' then
+            EXIT;
+
+        LoyaltyTransLineEntry.RESET;
+        LoyaltyTransLineEntry.setrange("Store No.", TransactionHeader."Store No.");
+        LoyaltyTransLineEntry.setrange("POS Terminal No.", TransactionHeader."POS Terminal No.");
+        LoyaltyTransLineEntry.setrange("Transaction No.", TransactionHeader."Transaction No.");
+        LoyaltyTransLineEntry.setfilter("Loyalty Card Number", '<>%1', '');
+        if NOT LoyaltyTransLineEntry.FindFirst() then
+            exit;
+
+        Voided := 0;
+        IF TransactionHeader."Entry Status" = TransactionHeader."Entry Status"::Voided then
+            Voided := 1;
+
+        Refund := 0;
+        IF TransactionHeader."Sale Is Return Sale" then
+            Refund := 1;
+
+        CLEAR(POSKey);
+        POSKey := '10yalty' +
+                LoyaltyTransLineEntry."Loyalty Card Number" +
+                TransactionHeader."Store No." +
+                FORMAT(TransactionHeader.Date, 0, '<Closing><Year4><Month,2><Day,2>') +
+                LSCPOSTerminal."Loyalty POS No." +
+                TransactionHeader."Official Receipt No.";
+
+        CLEAR(Data);
+        Data := STRSUBSTNO('state=trans&') +
+                    STRSUBSTNO('store=%1&', TransactionHeader."Store No.") +
+                    STRSUBSTNO('card_number=%1&', LoyaltyTransLineEntry."Loyalty Card Number") +
+                    STRSUBSTNO('pos=%1&', LSCPOSTerminal."Loyalty POS No.") +
+                    STRSUBSTNO('posdate=%1&', FORMAT(TransactionHeader.Date, 0, '<Closing><Year4><Month,2><Day,2>')) +
+                    STRSUBSTNO('or_num=%1&', TransactionHeader."Official Receipt No.") +
+                    STRSUBSTNO('cashier=%1&', TransactionHeader."Staff ID") +
+                    STRSUBSTNO('is_void=%1&', Voided) +
+                    STRSUBSTNO('is_refund=%1&', Refund) +
+                    STRSUBSTNO('pos_key=%1&', CreateMD5(POSKey));
+
+        CLEAR(ItemCount);
+        CLEAR(LSCTransSalesEntry);
+        LSCTransSalesEntry.SETCURRENTKEY("Store No.", "POS Terminal No.", "Transaction No.", "Line No.");
+        LSCTransSalesEntry.SETRANGE("Store No.", TransactionHeader."Store No.");
+        LSCTransSalesEntry.SETRANGE("POS Terminal No.", TransactionHeader."POS Terminal No.");
+        LSCTransSalesEntry.SETRANGE("Transaction No.", TransactionHeader."Transaction No.");
+        IF LSCTransSalesEntry.FINDSET THEN BEGIN
+            ItemCount := LSCTransSalesEntry.COUNT;
+            Data += STRSUBSTNO('item_count=%1&', ItemCount);
+        END;
+
+        CLEAR(TenderCount);
+        CLEAR(LSCTransPaymentEntry);
+        LSCTransPaymentEntry.SETCURRENTKEY("Store No.", "POS Terminal No.", "Transaction No.", "Line No.");
+        LSCTransPaymentEntry.SETRANGE("Store No.", TransactionHeader."Store No.");
+        LSCTransPaymentEntry.SETRANGE("POS Terminal No.", TransactionHeader."POS Terminal No.");
+        LSCTransPaymentEntry.SETRANGE("Transaction No.", TransactionHeader."Transaction No.");
+        IF LSCTransPaymentEntry.FINDSET THEN BEGIN
+            TenderCount := LSCTransPaymentEntry.COUNT;
+            Data += STRSUBSTNO('tender_count=%1&', TenderCount);
+        END ELSE
+            EXIT;
+
+        Counter := 1;
+        CLEAR(PromoCount);
+        REPEAT
+            IF Item.GET(LSCTransSalesEntry."Item No.") THEN BEGIN
+                Data += STRSUBSTNO('&item_code_%1=%2&', Counter, Item."No.") +
+                        STRSUBSTNO('item_desc_%1=%2&', Counter, Item.Description) +
+                        STRSUBSTNO('retail_price_%1=%2&', Counter, FORMAT(LSCTransSalesEntry.Price, 0, 1)) +
+                        STRSUBSTNO('quantity_%1=%2&', Counter, -LSCTransSalesEntry.Quantity) +
+                        STRSUBSTNO('category_cd_%1=%2&', Counter, Item."LSC Division Code") +
+                        STRSUBSTNO('subcat_cd_%1=%2&', Counter, Item."Item Category Code") +
+                        STRSUBSTNO('class_cd_%1=%2&', Counter, Item."LSC Retail Product Code" +
+                        STRSUBSTNO('subclass_cd_%1=%2', Counter, Item."LSC Item Family Code"));
+                IF STRPOS(Item.Description, 'PROMOLOY') > 0 THEN BEGIN
+                    CLEAR(LSCBarcode);
+                    LSCBarcode.SETRANGE("Item No.", Item."No.");
+                    LSCBarcode.SETRANGE("Barcode No.", LSCTransSalesEntry."Barcode No.");
+                    LSCBarcode.SETRANGE("Unit of Measure Code", LSCTransSalesEntry."Unit of Measure");
+                    IF LSCBarcode.FINDFIRST THEN BEGIN
+                        PromoCount += 1;
+                        Data += STRSUBSTNO('&promo_code_%1=%2&', Counter, LSCBarcode."Barcode No.") +
+                                STRSUBSTNO('promo_count_%1=%2', Counter, PromoCount);
+                    END;
+                END;
+
+                Counter += 1;
+            END;
+        UNTIL LSCTransSalesEntry.NEXT = 0;
+
+        Counter := 1;
+        REPEAT
+            IF LSCTenderType.GET(LSCTransPaymentEntry."Store No.", LSCTransPaymentEntry."Tender Type") THEN BEGIN
+                Data += STRSUBSTNO('&tender_code_%1=%2&', Counter, LSCTenderType.Code) +
+                        STRSUBSTNO('tender_desc_%1=%2&', Counter, LSCTenderType.Description) +
+                        STRSUBSTNO('tender_amount_%1=%2', Counter, FORMAT(LSCTransPaymentEntry."Amount Tendered", 0, 1));
+                Counter += 1;
+            END;
+        UNTIL LSCTransPaymentEntry.NEXT = 0;
+        Data := Data.Replace(' ', '%20');
+        IF AVGHttpFunctions.ProcessLoyaltyHttpWebRequest(LSCPOSTerminal."Loyalty Url", Data) THEN begin
+            InsertIntoLoyaltyTransLine(13, LoyaltyTransLineEntry."Loyalty Card Number", '', '');
+            exit(True);
+        end;
+        EXIT(false);
+    end;
+
+    local procedure CreateMD5(pString: Text): Text
+    var
+        MD5: DotNet MD5;
+        Encoding: DotNet Encoding;
+        HashBytes: DotNet Array;
+        StringBuilder: DotNet StringBuilder;
+        Counter: Integer;
+        NumArray: DotNet Byte;
+    begin
+        SelectLatestVersion();
+        Clear(MD5);
+        Clear(Encoding);
+        Clear(HashBytes);
+        Clear(StringBuilder);
+        Clear(Counter);
+        Clear(NumArray);
+        MD5 := MD5.Create;
+        HashBytes := MD5.ComputeHash(Encoding.UTF8.GetBytes(pString));
+        StringBuilder := StringBuilder.StringBuilder;
+        FOR Counter := 0 TO HashBytes.Length - 1 DO BEGIN
+            NumArray := HashBytes.GetValue(Counter);
+            StringBuilder.Append(NumArray.ToString('x2'));
+        END;
+        EXIT(StringBuilder.ToString);
     end;
 }

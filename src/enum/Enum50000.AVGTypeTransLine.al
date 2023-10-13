@@ -1,6 +1,6 @@
 enum 50000 "AVG Type Trans. Line"
 {
-
+    Extensible = false;
     value(0; "") { }
     value(1; "Cash In Inquire") { }
     value(2; "Cash In Credit") { }
@@ -13,5 +13,8 @@ enum 50000 "AVG Type Trans. Line"
     value(9; "Query Transaction") { }
     value(10; "Cancel Transaction") { }
     value(11; "Refund Transaction") { }
-
+    value(12; "Loyalty Add Member") { }
+    value(13; "Loyalty Earn Points") { }
+    value(14; "Loyalty Redeem Points") { }
+    value(15; "Loyalty Balance Inquiry") { }
 }

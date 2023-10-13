@@ -2,7 +2,7 @@ pageextension 50001 "AVG Income/Expense Ext." extends "LSC Income/Expense Acc. C
 {
     layout
     {
-        addafter("Allow on Customer Order")
+        addafter(Posting)
         {
             group("AVG Customizations")
             {

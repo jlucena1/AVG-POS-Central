@@ -990,4 +990,104 @@ codeunit 50004 "AVG Http Functions"
         EXIT(IDString);
     end;
 
+    procedure ProcessLoyaltyAPI(pIntLoyaltyAPITrigger: Integer; pTxtEndpoint: Text; CardNo: Text; var pLoyReq: Text; var pLoyRes: Text): Boolean;
+    var
+        LoyaltyTransType: Enum "AVG Type Trans. Line";
+        CardNumber: Text;
+        FullName: Text;
+        Balance: Decimal;
+        LastVisited: Text;
+        Result: Text;
+        LoyaltyBalInqMsg: Label 'Card No: %1\Full Name: %2\Balance: %3\Last Visited: %4';
+        LoyaltyAddMemberMsg: Label 'Card Accepted\%1';
+    begin
+        LoyaltyTransType := "AVG Type Trans. Line".FromInteger(pIntLoyaltyAPITrigger);
+        case LoyaltyTransType of
+            LoyaltyTransType::"Loyalty Balance Inquiry",
+                LoyaltyTransType::"Loyalty Add Member":
+                begin
+                    ClearHttpVars;
+                    LSCHttpWrapper.KeepAlive(true);
+                    LSCHttpWrapper.ContentTypeFromEnum(LSCContentType::Json);
+                    LSCHttpWrapper.SetHeader('User-Agent', 'AVGLoyalty');
+                    LSCHttpWrapper.Url(pTxtEndpoint + '?state=balance&card_number=' + CardNo);
+                    IF LSCHttpWrapper.Send() THEN BEGIN
+                        pLoyReq := LSCHttpWrapper.GetFullUrl();
+                        pLoyRes := LSCHttpWrapper.ResponseText();
+                        if LSCHttpWrapper.IsSuccessStatusCode() THEN BEGIN
+                            CLEAR(CardNumber);
+                            CLEAR(FullName);
+                            CLEAR(Balance);
+                            CLEAR(LastVisited);
+                            CLEAR(Result);
+                            Result := GetResponseJsonByPathText('loyalty.status.result');
+                            IF Result = 'ok' THEN begin
+                                CardNumber := CardNo;
+                                GetLast4DigitsLoyCardNo(CardNumber);
+                                FullName := GetResponseJsonByPathText('loyalty.data[0].first_name');
+                                FullName += ' ' + GetResponseJsonByPathText('loyalty.data[0].middle_name');
+                                FullName += ' ' + GetResponseJsonByPathText('loyalty.data[0].last_name');
+                                IF EVALUATE(Balance, GetResponseJsonByPathText('loyalty.data[0].balance')) THEN;
+                                LastVisited := GetResponseJsonByPathText('loyalty.data[0].last_visit');
+                                IF LoyaltyTransType = LoyaltyTransType::"Loyalty Balance Inquiry" THEN
+                                    AVGPOSFunctions.AVGPOSMessage(StrSubstNo(LoyaltyBalInqMsg, CardNumber, FullName, Balance, LastVisited));
+                                IF LoyaltyTransType = LoyaltyTransType::"Loyalty Add Member" then begin
+                                    AVGPOSFunctions.AVGPOSMessage(StrSubstNo(LoyaltyAddMemberMsg, FullName));
+                                    LSCPOSSession.SetValue('LOYMEMBERCARD', CardNumber);
+                                    LSCPOSSession.SetValue('LOYMEMBERNAME', FullName);
+                                END;
+                                EXIT(TRUE);
+                            end ELSE begin
+                                AVGPOSFunctions.AVGPOSErrorMessage(Result);
+                                exit(false);
+                            end;
+                        END ELSE begin
+                            IF LSCHttpWrapper.ResponseText() <> '' THEN
+                                AVGPOSFunctions.AVGPOSErrorMessage(LSCHttpWrapper.ResponseText());
+                            EXIT(FALSE);
+                        end;
+                    end ELSE begin
+                        IF LSCHttpWrapper.ResponseText() <> '' THEN
+                            AVGPOSFunctions.AVGPOSErrorMessage(LSCHttpWrapper.ResponseText());
+                        EXIT(FALSE);
+                    end;
+                end;
+        end;
+    end;
+
+    procedure ProcessLoyaltyHttpWebRequest(pURL: Text; pData: Text): Boolean
+    var
+        LoyaltySuccessMsg: Label 'Loyalty Points for %1 has been Successfully Proccessed.';
+    begin
+        ClearHttpVars;
+        LSCHttpWrapper.KeepAlive(true);
+        LSCHttpWrapper.SetHeader('User-Agent', 'AVGLoyalty');
+        LSCHttpWrapper.Url(pURL);
+        LSCHttpWrapper.RequestText(pData);
+        LSCHttpWrapper.AcceptType('application/json');
+        LSCHttpWrapper.ContentType('application/x-www-form-urlencoded');
+        LSCHttpWrapper.Method('POST');
+        IF LSCHttpWrapper.Send() THEN begin
+            AVGPOSFunctions.AVGPOSMessage(StrSubstNo(LoyaltySuccessMsg, LSCPOSSession.GetValue('LOYMEMBERNAME')));
+            exit(true);
+        end ELSE
+            EXIT(FALSE);
+    end;
+
+    procedure GetLast4DigitsLoyCardNo(var pCardNo: Text): Boolean
+    var
+        CardNoLoc: Text;
+        CardNoLength: Integer;
+    begin
+        CLEAR(CardNoLoc);
+        CLEAR(CardNoLength);
+        CardNoLoc := pCardNo;
+
+        CardNoLength := STRLEN(CardNoLoc);
+        IF CardNoLength < 16 THEN
+            EXIT(FALSE);
+
+        pCardNo := PADSTR('', CardNoLength - 4, 'X') + COPYSTR(CardNoLoc, CardNoLength - 3, CardNoLength);
+        EXIT(TRUE);
+    end;
 }

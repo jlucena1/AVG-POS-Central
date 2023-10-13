@@ -15,5 +15,4 @@ dotnet
         type(System.Array; CustArray) { }
         type(System.Text.Encoding; CustTextEncoding) { }
     }
-
 }

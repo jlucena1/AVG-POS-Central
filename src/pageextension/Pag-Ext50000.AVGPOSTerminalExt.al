@@ -310,6 +310,24 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
                         ToolTip = 'Specifies the value of the GCash Reason Code field.';
                     }
                 }
+                group("Loyalty Integration")
+                {
+                    field("Enable Loyalty"; Rec."Enable Loyalty")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Enable Loyalty field.';
+                    }
+                    field("Loyalty Url"; Rec."Loyalty Url")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Loyalty Url field.';
+                    }
+                    field("Loyalty POS No."; Rec."Loyalty POS No.")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Loyalty POS No. field.';
+                    }
+                }
             }
         }
     }

@@ -1,6 +1,10 @@
-codeunit 50001 "AVG Print Util Event Subs."
+codeunit 50001 "AVG POS Print Utility"
 {
     var
+        AVGPOSSession: Codeunit "AVG POS Session";
+        AVGFunctions: Codeunit "AVG Functions";
+        AVGHttpFunctions: Codeunit "AVG Http Functions";
+        LSCPOSFunctions: Codeunit "LSC POS Functions";
         GiftCardCurrencyCode: Code[10];
         LineLen: Integer;
         NodeName: array[32] of Text[50];
@@ -347,68 +351,160 @@ codeunit 50001 "AVG Print Util Event Subs."
         txtLValue: array[10] of Text;
         txtLValue2: array[10] of Text;
         DSTR1: Text;
-        LSCPOSFunctionsCU: Codeunit "LSC POS Functions";
+        LSCTransPaymentEntry: Record "LSC Trans. Payment Entry";
+        LSCTenderType: Record "LSC Tender Type";
+        NoOfCopies: Integer;
+        NoOfCopiesCounter: Integer;
     begin
 
         CLEAR(DSTR1);
         CLEAR(txtLValue);
         clear(txtLValue2);
-
+        CLEAR(NoOfCopies);
         IF Transaction."Transaction No." = 0 THEN
             EXIT;
 
         IF Transaction."Official Receipt No." = '' THEN
             EXIT;
 
-        IF NOT Sender.OpenReceiptPrinter(2, 'NORMAL', 'TENDERSLIP', Transaction."Transaction No.", Transaction."Receipt No.") THEN
+        LSCTransPaymentEntry.RESET;
+        LSCTransPaymentEntry.SetCurrentKey("Store No.", "POS Terminal No.", "Transaction No.", "Line No.");
+        LSCTransPaymentEntry.SetRange("Store No.", Transaction."Store No.");
+        LSCTransPaymentEntry.Setrange("POS Terminal No.", Transaction."POS Terminal No.");
+        LSCTransPaymentEntry.Setrange("Transaction No.", Transaction."Transaction No.");
+        IF LSCTransPaymentEntry.FindSet() then
+            repeat
+                IF LSCTenderType.Get(Transaction."Store No.", LSCTransPaymentEntry."Tender Type") THEN
+                    NoOfCopies := LSCTenderType."No. of Copies";
+            until LSCTransPaymentEntry.Next() = 0;
+
+        IF NoOfCopies = 0 then
             EXIT;
 
-        Sender.PrintLogo(2);
-        Sender.PrintHeader(Transaction, FALSE, 2);
-        Sender.PrintSubHeader(Transaction, 2, Transaction.Date, Transaction.Time);
-        DSTR1 := '#C##################';
-        txtLValue[1] := 'STORE COPY';
-        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), TRUE, FALSE, TRUE, FALSE));
-        Sender.PrintSeperator(2);
-        IF Transaction."Transaction Type" = Transaction."Transaction Type"::Sales THEN BEGIN
-            IF NOT Transaction."Sale Is Return Sale" THEN BEGIN
-                IF Transaction."Sales Type" <> '' THEN BEGIN
-                    CLEAR(txtLValue);
-                    DSTR1 := '       #C#########################';
-                    txtLValue[1] := Transaction."Sales Type";
-                    Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
+        FOR NoOfCopiesCounter := 1 TO NoOfCopies DO BEGIN
+            IF NOT Sender.OpenReceiptPrinter(2, 'NORMAL', 'TENDERSLIP', Transaction."Transaction No.", Transaction."Receipt No.") THEN
+                EXIT;
+
+            Sender.PrintLogo(2);
+            Sender.PrintHeader(Transaction, FALSE, 2);
+            Sender.PrintSubHeader(Transaction, 2, Transaction.Date, Transaction.Time);
+            DSTR1 := '#C##################';
+            txtLValue[1] := 'STORE COPY';
+            Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), TRUE, FALSE, TRUE, FALSE));
+            Sender.PrintSeperator(2);
+            IF Transaction."Transaction Type" = Transaction."Transaction Type"::Sales THEN BEGIN
+                IF NOT Transaction."Sale Is Return Sale" THEN BEGIN
+                    IF Transaction."Sales Type" <> '' THEN BEGIN
+                        CLEAR(txtLValue);
+                        DSTR1 := '       #C#########################';
+                        txtLValue[1] := Transaction."Sales Type";
+                        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
+                    END;
+                    Sender.PrintSeperator(2);
                 END;
-                Sender.PrintSeperator(2);
             END;
+            DSTR1 := '       #C#########################';
+            txtLValue[1] := 'TENDER SLIP';
+            Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
+            Sender.PrintSeperator(2);
+            DSTR1 := '#L################## #R## #R#########   ';
+            txtLValue[1] := 'Total Sales Amount';
+            txtLValue[2] := '';
+            txtLValue[3] := LSCPOSFunctions.FormatAmount(-Transaction."Gross Amount");
+            Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
+            PrintPaymInfo(Sender, Transaction, 2);
+
+            Sender.PrintBlankLine(2);
+            DSTR1 := '       #C#########################';
+            txtLValue[1] := 'Merchant Signature';
+            Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
+
+            txtLValue[1] := '_________________';
+            Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
+            Sender.PrintSeperator(2);
+
+            txtLValue[1] := 'Customer Signature';
+            Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
+
+            txtLValue[1] := '_________________';
+            Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
+            Sender.PrintSeperator(2);
+
+            IF not Sender.ClosePrinter(2) then
+                exit;
         END;
-        DSTR1 := '       #C#########################';
-        txtLValue[1] := 'TENDER SLIP';
-        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
-        Sender.PrintSeperator(2);
-        DSTR1 := '#L################## #R## #R#########   ';
-        txtLValue[1] := 'Total Sales Amount';
-        txtLValue[2] := '';
-        txtLValue[3] := LSCPOSFunctionsCU.FormatAmount(-Transaction."Gross Amount");
-        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
-        PrintPaymInfo(Sender, Transaction, 2);
+    end;
 
-        Sender.PrintBlankLine(2);
-        DSTR1 := '       #C#########################';
-        txtLValue[1] := 'Merchant Signature';
-        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Print Utility", OnBeforePrintSalesInfo, '', false, false)]
+    local procedure OnBeforePrintSalesInfo(var Sender: Codeunit "LSC POS Print Utility"; var Transaction: Record "LSC Transaction Header"; var PrintBuffer: Record "LSC POS Print Buffer"; var PrintBufferIndex: Integer; var LinesPrinted: Integer; Tray: Integer; var IsHandled: Boolean; bSecondPrintActive: Boolean);
+    var
+        CardNo: Text;
+        CardNoLast4: Text;
+        FullName: Text;
+        Balance: Decimal;
+        Earned: Decimal;
+        Redeemed: Decimal;
+        DSTR1: Text;
+        Value: array[10] of Text;
+        LoyaltyTransLineEntry: Record "AVG Trans. Line Entry";
+    begin
+        CLEAR(CardNo);
+        CLEAR(CardNoLast4);
+        CLEAR(FullName);
+        CLEAR(Balance);
+        CLEAR(Earned);
+        CLEAR(Redeemed);
 
-        txtLValue[1] := '_________________';
-        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
-        Sender.PrintSeperator(2);
-
-        txtLValue[1] := 'Customer Signature';
-        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
-
-        txtLValue[1] := '_________________';
-        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(txtLValue, DSTR1), FALSE, FALSE, FALSE, FALSE));
-        Sender.PrintSeperator(2);
-
-        IF not Sender.ClosePrinter(2) then
+        LoyaltyTransLineEntry.RESET;
+        LoyaltyTransLineEntry.SetCurrentKey("Store No.", "POS Terminal No.", "Transaction No.", "Line No.");
+        LoyaltyTransLineEntry.SETRANGE("Store No.", Transaction."Store No.");
+        LoyaltyTransLineEntry.SETRANGE("POS Terminal No.", Transaction."POS Terminal No.");
+        LoyaltyTransLineEntry.SETRANGE("Transaction No.", Transaction."Transaction No.");
+        LoyaltyTransLineEntry.SETFILTER("Loyalty Card Number", '<>%1', '');
+        IF LoyaltyTransLineEntry.findset() then begin
+            repeat
+                CardNo := LoyaltyTransLineEntry."Loyalty Card Number";
+                CardNoLast4 := LoyaltyTransLineEntry."Loyalty Card Number Last 4";
+                FullName := LoyaltyTransLineEntry."Loyalty Member Full Name";
+                Balance := LoyaltyTransLineEntry."Loyalty Member Balance";
+                CASE LoyaltyTransLineEntry."Process Type" of
+                    LoyaltyTransLineEntry."Process Type"::"Loyalty Earn Points":
+                        Earned := LoyaltyTransLineEntry."Loyalty Points Earned";
+                    LoyaltyTransLineEntry."Process Type"::"Loyalty Redeem Points":
+                        Redeemed := LoyaltyTransLineEntry."Loyalty Points Redeemed";
+                END;
+            until LoyaltyTransLineEntry.Next() = 0;
+        end ELSE
             exit;
+
+        IF (CardNo = '') OR (CardNoLast4 = '') then
+            EXIT;
+        DSTR1 := '#L##############   #R##################';
+
+        Value[1] := 'Membership Card:';
+        Value[2] := CardNoLast4;
+        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(Value, DSTR1), FALSE, FALSE, FALSE, FALSE));
+        Sender.AddPrintLine(200, 2, NodeName, Value, DSTR1, FALSE, FALSE, FALSE, FALSE, 2);
+
+        Value[1] := 'Membership Name:';
+        Value[2] := FullName;
+        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(Value, DSTR1), FALSE, FALSE, FALSE, FALSE));
+        Sender.AddPrintLine(200, 2, NodeName, Value, DSTR1, FALSE, FALSE, FALSE, FALSE, 2);
+
+        Value[1] := 'Points Earned:';
+        Value[2] := LSCPOSFunctions.FormatAmount(Earned);
+        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(Value, DSTR1), FALSE, FALSE, FALSE, FALSE));
+        Sender.AddPrintLine(200, 2, NodeName, Value, DSTR1, FALSE, FALSE, FALSE, FALSE, 2);
+
+        Value[1] := 'Points Redeemed:';
+        Value[2] := LSCPOSFunctions.FormatAmount(Redeemed);
+        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(Value, DSTR1), FALSE, FALSE, FALSE, FALSE));
+        Sender.AddPrintLine(200, 2, NodeName, Value, DSTR1, FALSE, FALSE, FALSE, FALSE, 2);
+
+        Value[1] := 'Points Balance:';
+        Value[2] := LSCPOSFunctions.FormatAmount(Balance);
+        Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(Value, DSTR1), FALSE, FALSE, FALSE, FALSE));
+        Sender.AddPrintLine(200, 2, NodeName, Value, DSTR1, FALSE, FALSE, FALSE, FALSE, 2);
+        Sender.PrintSeperator(2);
     end;
 }

@@ -78,6 +78,26 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
                         end;
                     }
                 }
+                group(Loyalty)
+                {
+                    field("Loyalty Points"; LoyaltyEntries)
+                    {
+                        Caption = 'Loyalty Points';
+                        ApplicationArea = All;
+                        trigger OnDrillDown()
+                        var
+                            LoyaltyEntriesRec: Record "AVG Trans. Line Entry";
+                            LoyaltyEntriesPag: Page "Loyalty Trans. Line Entries";
+                        begin
+                            FilterLoyaltyEntries(LoyaltyEntriesRec);
+                            LoyaltyEntriesPag.SETTABLEVIEW(LoyaltyEntriesRec);
+                            LoyaltyEntriesPag.EDITABLE(FALSE);
+                            LoyaltyEntriesPag.LOOKUPMODE(TRUE);
+                            LoyaltyEntriesPag.RUNMODAL;
+                        end;
+                    }
+
+                }
             }
         }
     }
@@ -87,6 +107,7 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
         AllEasyCashOutEntries := GetAllEasyCashOutEntries();
         AllEasyPayEntries := GetAllEasyPayEntries();
         GCashPayEntries := GetGCashPayEntries();
+        LoyaltyEntries := GetLoyaltyEntries();
     end;
 
     var
@@ -94,6 +115,7 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
         AllEasyCashOutEntries: Integer;
         AllEasyPayEntries: Integer;
         GCashPayEntries: Integer;
+        LoyaltyEntries: Integer;
 
     local procedure FilterAllEasyCashInEntries(var AllEasyCashInEntries: Record "AVG Trans. Line Entry")
     begin
@@ -139,6 +161,19 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
         GCashPayEntries.FilterGroup(0);
     end;
 
+    local procedure FilterLoyaltyEntries(var LoyaltyEntries: Record "AVG Trans. Line Entry")
+    begin
+        LoyaltyEntries.FilterGroup(2);
+        LoyaltyEntries.SetRange("Store No.", Rec."Store No.");
+        LoyaltyEntries.SetRange("POS Terminal No.", Rec."POS Terminal No.");
+        LoyaltyEntries.setrange("Transaction No.", Rec."Transaction No.");
+        LoyaltyEntries.SetFilter("Process Type", '%1|%2|%3',
+            LoyaltyEntries."Process Type"::"Loyalty Add Member",
+            LoyaltyEntries."Process Type"::"Loyalty Earn Points",
+            LoyaltyEntries."Process Type"::"Loyalty Redeem Points");
+        LoyaltyEntries.FilterGroup(0);
+    end;
+
     local procedure GetAllEasyCashInEntries(): Decimal
     var
         AllEasyCashInRec: Record "AVG Trans. Line Entry";
@@ -169,5 +204,13 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
     begin
         FilterGCashPayEntries(GCashPayEntriesRec);
         EXIT(GCashPayEntriesRec.Count);
+    end;
+
+    local procedure GetLoyaltyEntries(): Decimal
+    var
+        LoyaltyEntriesRec: Record "AVG Trans. Line Entry";
+    begin
+        FilterLoyaltyEntries(LoyaltyEntriesRec);
+        EXIT(LoyaltyEntriesRec.Count);
     end;
 }

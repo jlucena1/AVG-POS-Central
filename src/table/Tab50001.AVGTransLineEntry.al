@@ -295,6 +295,42 @@ table 50001 "AVG Trans. Line Entry"
         {
 
         }
+        field(73; "Loyalty Member Full Name"; Text[80])
+        {
+
+        }
+        field(74; "Loyalty Member Balance"; Decimal)
+        {
+
+        }
+        field(75; "Loyalty Member Last Visited"; Text[20])
+        {
+
+        }
+        field(76; "Loyalty Card Number"; Text[30])
+        {
+
+        }
+        field(77; "Loyalty Card Number Last 4"; Text[30])
+        {
+
+        }
+        field(78; "Loyalty Request"; text[2048])
+        {
+
+        }
+        field(79; "Loyalty Response"; text[2048])
+        {
+
+        }
+        field(80; "Loyalty Points Earned"; Decimal)
+        {
+
+        }
+        field(81; "Loyalty Points Redeemed"; Decimal)
+        {
+
+        }
     }
     keys
     {
