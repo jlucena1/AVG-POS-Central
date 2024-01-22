@@ -37,6 +37,18 @@ table 50002 "AVG Setup"
         {
             DataClassification = CustomerContent;
         }
+        field(10; "AVG Company Code"; Code[20])
+        {
+            DataClassification = CustomerContent;
+        }
+        field(11; "Auto Retrieve Tender on Refund"; Boolean)
+        {
+            DataClassification = CustomerContent;
+        }
+        field(12; "Wifi Pins"; Boolean)
+        {
+            DataClassification = CustomerContent;
+        }
     }
     keys
     {

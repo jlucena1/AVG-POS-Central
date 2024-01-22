@@ -328,6 +328,39 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
                         ToolTip = 'Specifies the value of the Loyalty POS No. field.';
                     }
                 }
+                group("Loyalty Integration V2")
+                {
+                    field("Enable Loyalty V2"; Rec."Enable Loyalty V2")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Enable Loyalty V2 field.';
+                    }
+                    field("Loyalty V2 Url"; Rec."Loyalty V2 Url")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Loyalty V2 Url field.';
+                    }
+                    field("Loyalty V2 Setup Endpoint"; Rec."Loyalty V2 Setup Endpoint")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Loyalty V2 Setup Endpoint field.';
+                    }
+                    field("Loyalty V2 POS Setup Endpoint"; Rec."Loyalty V2 POS Setup Endpoint")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Loyalty V2 POS Setup Endpoint field.';
+                    }
+                    field("Loyalty V2 Member Data Endpt"; Rec."Loyalty V2 Member Data Endpt")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Loyalty V2 Member Data Endpoint field.';
+                    }
+                    field("Loyalty V2 Cancel Trans. Endpt"; Rec."Loyalty V2 Cancel Trans. Endpt")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Loyalty V2 Cancel Transaction Endpoint field.';
+                    }
+                }
             }
         }
     }

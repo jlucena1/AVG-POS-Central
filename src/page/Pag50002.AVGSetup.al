@@ -23,7 +23,6 @@ page 50002 "AVG Setup"
                 field("Error Prompt Messages Format"; Rec."Error Prompt Messages Format")
                 {
 
-
                 }
                 field("Last Date Modified"; Rec."Last Date Modified")
                 {
@@ -42,6 +41,18 @@ page 50002 "AVG Setup"
                     Editable = false;
                 }
                 field("Hide Values on Keyboard"; Rec."Hide Values on Keyboard")
+                {
+
+                }
+                field("AVG Company Code"; Rec."AVG Company Code")
+                {
+
+                }
+                field("Auto Retrieve on Refund"; Rec."Auto Retrieve Tender on Refund")
+                {
+
+                }
+                field("Wifi Pins"; Rec."Wifi Pins")
                 {
 
                 }

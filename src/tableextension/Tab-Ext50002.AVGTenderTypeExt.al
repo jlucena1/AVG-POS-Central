@@ -4,7 +4,14 @@ tableextension 50002 "AVG Tender Type Ext." extends "LSC Tender Type"
     {
         field(50100; "No. of Copies"; Integer)
         {
-            Caption = 'No. of Copies';
+            DataClassification = CustomerContent;
+        }
+        field(50101; "Loyalty Redemption"; Boolean)
+        {
+            DataClassification = CustomerContent;
+        }
+        field(50102; "Exclude Refund Autopost"; Boolean)
+        {
             DataClassification = CustomerContent;
         }
     }

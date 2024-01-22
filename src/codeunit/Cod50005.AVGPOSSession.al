@@ -43,6 +43,16 @@ codeunit 50005 "AVG POS Session"
         end;
     end;
 
+    procedure AVGCompanyCode(): Code[20]
+    begin
+        exit(AVGSetup."AVG Company Code");
+    end;
+
+    procedure GetCurrAVGSetup(var pAVGSetup: Record "AVG Setup")
+    begin
+        pAVGSetup := AVGSetup;
+    end;
+
     procedure ClearAllValues()
     begin
         ClearCurrAuthToken();

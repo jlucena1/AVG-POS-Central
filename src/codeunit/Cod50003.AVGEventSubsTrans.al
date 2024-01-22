@@ -423,4 +423,5 @@ codeunit 50003 "AVG Event Subs. Trans."
         ELSE
             AVGHttpFunctions.InsertIntoGCashTransLine(11, '', POSTransLine.Amount, POSTransLine."Line No.")
     end;
+
 }

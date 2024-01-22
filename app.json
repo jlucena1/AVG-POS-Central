@@ -2,7 +2,7 @@
   "id": "ac279206-73f9-4e10-89a7-7fabccf7df29",
   "name": "AVG POS Central App",
   "publisher": "AllValue Holdings Corp.",
-  "version": "22.0.0.2",
+  "version": "22.0.0.3",
   "brief": "",
   "description": "",
   "privacyStatement": "",
@@ -37,8 +37,13 @@
     {
       "from": 50000,
       "to": 50999
+    },
+    {
+      "from": 99009650,
+      "to": 99009699
     }
   ],
+  
   "resourceExposurePolicy": {
     "allowDebugging": false,
     "allowDownloadingSource": false,
