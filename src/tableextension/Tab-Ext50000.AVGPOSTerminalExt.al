@@ -332,6 +332,36 @@ tableextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal"
             Caption = 'Loyalty POS No.';
             DataClassification = CustomerContent;
         }
+        field(50162; "Enable Loyalty V2"; Boolean)
+        {
+            Caption = 'Enable Loyalty V2';
+            DataClassification = CustomerContent;
+        }
+        field(50163; "Loyalty V2 Url"; Text[60])
+        {
+            Caption = 'Loyalty V2 Url';
+            DataClassification = CustomerContent;
+        }
+        field(50164; "Loyalty V2 Setup Endpoint"; Text[30])
+        {
+            Caption = 'Loyalty V2 Setup Endpoint';
+            DataClassification = CustomerContent;
+        }
+        field(50165; "Loyalty V2 POS Setup Endpoint"; Text[30])
+        {
+            Caption = 'Loyalty V2 POS Setup Endpoint';
+            DataClassification = CustomerContent;
+        }
+        field(50166; "Loyalty V2 Member Data Endpt"; Text[30])
+        {
+            Caption = 'Loyalty V2 Member Data Endpoint';
+            DataClassification = CustomerContent;
+        }
+        field(50167; "Loyalty V2 Cancel Trans. Endpt"; Text[30])
+        {
+            Caption = 'Loyalty V2 Cancel Transaction Endpoint';
+            DataClassification = CustomerContent;
+        }
     }
     var
         IncExpAcc: Record "LSC Income/Expense Account";

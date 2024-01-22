@@ -118,6 +118,7 @@ codeunit 50001 "AVG POS Print Utility"
         txtLValue2: array[10] of Text;
         txtLDesign: Text;
         RefNo: Text;
+        LoyV2Entries: Record "AVG Loyalty V2 Entry";
     begin
         Clear(PaymEntry);
         PaymEntry.SetRange("Store No.", Transaction."Store No.");
@@ -252,8 +253,29 @@ codeunit 50001 "AVG POS Print Utility"
                             Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
                         end;
                     end;
+
+
+
                 end;
             until PaymEntry.Next = 0;
+            LoyV2Entries.Reset();
+            LoyV2Entries.SetCurrentKey("Store No.", "POS Terminal No.", "Transaction No.", "Line No.");
+            LoyV2Entries.SetRange("Store No.", Transaction."Store No.");
+            LoyV2Entries.SetRange("POS Terminal No.", Transaction."POS Terminal No.");
+            LoyV2Entries.SetRange("Transaction No.", Transaction."Transaction No.");
+            LoyV2Entries.SetFilter("Res. Action", '%1', 'REDEEM');
+            if LoyV2Entries.FindFirst() then begin
+                CLEAR(txtLValue2);
+                txtLDesign := ' #L########################################';
+                txtLValue2[1] := StrSubstNo('Member Card No.: %1', LoyV2Entries."Card Number Last 4");
+                Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
+
+                CLEAR(txtLValue2);
+                txtLDesign := ' #L#########################';
+                txtLValue2[1] := StrSubstNo('Redeemed Amount: %1', POSFunctions.FormatAmount(LoyV2Entries."Res. Points"));
+                Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
+            end;
+            Sender.PrintSeperator(2);
         end;
         Sender.PrintSeperator(Tray);
     end;
@@ -506,5 +528,61 @@ codeunit 50001 "AVG POS Print Utility"
         Sender.PrintLine(2, Sender.FormatLine(Sender.FormatStr(Value, DSTR1), FALSE, FALSE, FALSE, FALSE));
         Sender.AddPrintLine(200, 2, NodeName, Value, DSTR1, FALSE, FALSE, FALSE, FALSE, 2);
         Sender.PrintSeperator(2);
+    end;
+
+    procedure PrintWifiPins(pLSCPOSTransaction: Record "LSC POS Transaction"): Boolean
+    var
+        LSCPOSPrintUtils: Codeunit "LSC POS Print Utility";
+        LSCTransactionHeaderLocRec: Record "LSC Transaction Header";
+        WifiPinsEntry: Record "AVG Wifi Pins Entry";
+        AVGSetup: Record "AVG Setup";
+        txtLValue: Array[10] of Text[100];
+        txtLNodeName: array[32] of text[50];
+        DSTR1: Text[100];
+    begin
+        if not LSCPOSPrintUtils.OpenReceiptPrinter(2, 'WIFIPINS', '', 0, pLSCPOSTransaction."Receipt No.") then
+            exit(false);
+
+        LSCTransactionHeaderLocRec."Store No." := pLSCPOSTransaction."Store No.";
+        LSCTransactionHeaderLocRec."POS Terminal No." := pLSCPOSTransaction."POS Terminal No.";
+        LSCTransactionHeaderLocRec."Receipt No." := pLSCPOSTransaction."Receipt No.";
+
+        LSCPOSPrintUtils.PrintLogo(2);
+        LSCPOSPrintUtils.PrintHeader(LSCTransactionHeaderLocRec, true);
+        AVGPOSSession.GetCurrAVGSetup(AVGSetup);
+        if not AVGSetup."Wifi Pins" then
+            exit;
+
+        WifiPinsEntry.Reset();
+        WifiPinsEntry.SetCurrentKey("Entry No.");
+        WifiPinsEntry.SetRange(Used, false);
+        IF WifiPinsEntry.FindFirst() then begin
+            CLEAR(txtLValue);
+            DSTR1 := '#C######################################';
+            txtLValue[1] := 'WIFI PASSWORD';
+            txtLNodeName[1] := 'WIFIPASS';
+            LSCPOSPrintUtils.PrintLine(2, LSCPOSPrintUtils.FormatLine(LSCPOSPrintUtils.FormatStr(txtLValue, DSTR1, false), false, true, false, false));
+            LSCPOSPrintUtils.AddPrintLine(200, 1, txtLNodeName, txtLValue, DSTR1, false, true, false, false, 2);
+
+            txtLValue[1] := WifiPinsEntry."Account PIN";
+            txtLNodeName[1] := 'WIFIPASS1';
+
+            LSCPOSPrintUtils.PrintLine(2, LSCPOSPrintUtils.FormatLine(LSCPOSPrintUtils.FormatStr(txtLValue, DSTR1, false), false, true, false, false));
+            LSCPOSPrintUtils.AddPrintLine(200, 1, txtLNodeName, txtLValue, DSTR1, false, true, false, false, 2);
+
+            txtLValue[1] := 'ENJOY YOUR STAY!!!';
+            txtLNodeName[1] := 'WIFIPASS2';
+
+            LSCPOSPrintUtils.PrintLine(2, LSCPOSPrintUtils.FormatLine(LSCPOSPrintUtils.FormatStr(txtLValue, DSTR1, false), false, true, false, false));
+            LSCPOSPrintUtils.AddPrintLine(200, 1, txtLNodeName, txtLValue, DSTR1, false, true, false, false, 2);
+            LSCPOSPrintUtils.PrintSeperator(2);
+            WifiPinsEntry.Delete();
+            Commit();
+        end;
+        LSCPOSPrintUtils.PrintFooter(LSCTransactionHeaderLocRec);
+
+        if not LSCPOSPrintUtils.ClosePrinter(2) then
+            exit(false);
+        exit(true);
     end;
 }

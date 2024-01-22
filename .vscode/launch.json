@@ -9,7 +9,7 @@
             "server": "http://localhost",
             "serverInstance": "BC220",
             "port": 22049,
-            "authentication": "Windows",
+            "authentication": "UserPassword",
             "startupObjectId": 22,
             "startupObjectType": "Page",
             "breakOnError": "All",
