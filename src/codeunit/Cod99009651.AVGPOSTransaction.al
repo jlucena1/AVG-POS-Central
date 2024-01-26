@@ -154,6 +154,12 @@ codeunit 99009651 "AVG POS Transaction"
         PrintedWifiPinsEntry: Record "AVG Printed Wifi Pins Entry";
         AVGSetup: Record "AVG Setup";
     begin
+        if TransactionHeader_p."Sale Is Exchange Sale" then
+            exit;
+
+        if TransactionHeader_p."Entry Status" = TransactionHeader_p."Entry Status"::Voided then
+            exit;
+
         AVGPOSSessionCU.GetCurrAVGSetup(AVGSetup);
         if not AVGSetup."Wifi Pins" then
             exit;
@@ -182,6 +188,10 @@ codeunit 99009651 "AVG POS Transaction"
         txtLNodeName: array[32] of Text[50];
         PrintedWifiPinsEntry: Record "AVG Printed Wifi Pins Entry";
         AVGSetup: Record "AVG Setup";
+        recLTransactionHeader: Record "LSC Transaction Header";
+        codStoreNo: Code[20];
+        codPOSTerminal: Code[20];
+        intTransactionNo: Integer;
     begin
         AVGPOSSessionCU.GetCurrAVGSetup(AVGSetup);
         if not AVGSetup."Wifi Pins" then
@@ -190,11 +200,29 @@ codeunit 99009651 "AVG POS Transaction"
         if Transaction."Transaction No." = 0 then
             exit;
 
+        clear(codStoreNo);
+        clear(codPOSTerminal);
+        clear(intTransactionNo);
+        if Transaction."Sale Is Return Sale" then begin
+            recLTransactionHeader.Reset();
+            recLTransactionHeader.setrange("Store No.", Transaction."Store No.");
+            recLTransactionHeader.setrange("Receipt No.", Transaction."Retrieved from Receipt No.");
+            IF recLTransactionHeader.FindFirst() then begin
+                codStoreNo := recLTransactionHeader."Store No.";
+                codPOSTerminal := recLTransactionHeader."POS Terminal No.";
+                intTransactionNo := recLTransactionHeader."Transaction No.";
+            end;
+        end else begin
+            codStoreNo := Transaction."Store No.";
+            codPOSTerminal := Transaction."POS Terminal No.";
+            intTransactionNo := Transaction."Transaction No.";
+        end;
+
         CLEAR(PrintedWifiPinsEntry);
         PrintedWifiPinsEntry.SETCURRENTKEY("Store No.", "POS Terminal No.", "Transaction No.");
-        PrintedWifiPinsEntry.SETRANGE("Store No.", Transaction."Store No.");
-        PrintedWifiPinsEntry.SETRANGE("POS Terminal No.", Transaction."POS Terminal No.");
-        PrintedWifiPinsEntry.SETRANGE("Transaction No.", Transaction."Transaction No.");
+        PrintedWifiPinsEntry.SETRANGE("Store No.", codStoreNo);
+        PrintedWifiPinsEntry.SETRANGE("POS Terminal No.", codPOSTerminal);
+        PrintedWifiPinsEntry.SETRANGE("Transaction No.", intTransactionNo);
         IF PrintedWifiPinsEntry.FINDFIRST THEN BEGIN
             CLEAR(txtLValue);
             DSTR1 := '#C######################################';
@@ -202,9 +230,9 @@ codeunit 99009651 "AVG POS Transaction"
             txtLNodeName[1] := 'WIFIPASS';
             MainSender.PrintLine(2, MainSender.FormatLine(MainSender.FormatStr(txtLValue, DSTR1, false), false, true, false, false));
             MainSender.AddPrintLine(200, 1, txtLNodeName, txtLValue, DSTR1, false, true, false, false, 2);
+
             txtLValue[1] := PrintedWifiPinsEntry."Account PIN";
             txtLNodeName[1] := 'WIFIPASS1';
-
             MainSender.PrintLine(2, MainSender.FormatLine(MainSender.FormatStr(txtLValue, DSTR1, false), false, true, false, false));
             MainSender.AddPrintLine(200, 1, txtLNodeName, txtLValue, DSTR1, false, true, false, false, 2);
 
