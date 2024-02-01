@@ -112,6 +112,7 @@ page 99009651 "AVG Wifi Pins Lists"
                     Ctr := WifiPinsEntry2."Entry No." + 1
                 ELSE
                     Ctr := 1;
+
                 IF CSVBuffer."Line No." <> Currline THEN BEGIN
                     CLEAR(TempAccountPIN);
                     TempAccountPIN := CSVBuffer.GetValue(CSVBuffer."Line No.", 2);
@@ -123,17 +124,23 @@ page 99009651 "AVG Wifi Pins Lists"
                         StoreCode := COPYSTR(TempAccountPIN, 1, Position - 1);
                     END ELSE
                         AccountPIN := TempAccountPIN;
-                    WifiPinsEntry.LOCKTABLE;
-                    WifiPinsEntry.INIT;
-                    WifiPinsEntry."Entry No." := Ctr;
-                    EVALUATE(WifiPinsEntry."File Entry No.", CSVBuffer.GetValue(CSVBuffer."Line No.", 1));
-                    EVALUATE(WifiPinsEntry."Account PIN", AccountPIN);
-                    EVALUATE(WifiPinsEntry.Used, CSVBuffer.GetValue(CSVBuffer."Line No.", 3));
-                    IF NOT WifiPinsEntry.Used THEN BEGIN
-                        IF NOT WifiPinsEntry.INSERT THEN
-                            WifiPinsEntry.MODIFY;
-                        RecCount += 1;
-                    END;
+                    IF (CSVBuffer.GetValue(CSVBuffer."Line No.", 1) <> '') AND
+                       (AccountPIN <> '') AND
+                       (CSVBuffer.GetValue(CSVBuffer."Line No.", 3) <> '') THEN begin
+                        WifiPinsEntry.LOCKTABLE;
+                        WifiPinsEntry.INIT;
+                        WifiPinsEntry."Entry No." := Ctr;
+                        EVALUATE(WifiPinsEntry."File Entry No.", CSVBuffer.GetValue(CSVBuffer."Line No.", 1));
+                        EVALUATE(WifiPinsEntry."Account PIN", AccountPIN);
+                        EVALUATE(WifiPinsEntry.Used, CSVBuffer.GetValue(CSVBuffer."Line No.", 3));
+                        WifiPinsEntry."Uploaded By" := UserId;
+                        WifiPinsEntry."Uploaded DateTime" := CurrentDateTime;
+                        IF NOT WifiPinsEntry.Used THEN BEGIN
+                            IF NOT WifiPinsEntry.INSERT THEN
+                                WifiPinsEntry.MODIFY;
+                            RecCount += 1;
+                        END;
+                    end;
                 END;
                 Currline := CSVBuffer."Line No.";
             UNTIL CSVBuffer.NEXT = 0;
