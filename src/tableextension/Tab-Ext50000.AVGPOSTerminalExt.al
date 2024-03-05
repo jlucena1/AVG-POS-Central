@@ -362,6 +362,78 @@ tableextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal"
             Caption = 'Loyalty V2 Cancel Transaction Endpoint';
             DataClassification = CustomerContent;
         }
+        field(50168; "Enable P2M Pay"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Enable P2M Pay';
+        }
+        field(50169; "P2M URL"; Text[50])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M URL';
+        }
+        field(50170; "P2M SoapAction URL"; Text[60])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M SoapAction URL';
+        }
+        field(50171; "P2M Access ID"; Text[60])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Access ID';
+        }
+        field(50172; "P2M Secret Key"; Text[60])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Secret Key';
+        }
+        field(50173; "P2M Webhook Secret"; Text[80])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Webhook Secret';
+        }
+        field(50174; "P2M Username"; Text[50])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Username';
+        }
+        field(50175; "P2M Password"; Text[50])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Password';
+        }
+        field(50176; "P2M Internal Url"; Text[50])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Internal Url';
+        }
+        field(50177; "P2M Internal Endpt. P2M"; Text[10])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Internal Endpoint P2M';
+        }
+        field(50178; "P2M Internal Endpt. Instapay"; Text[10])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Internal Endpoint Instapay';
+        }
+        field(50179; "P2M Internal Endpt. Pesonet"; Text[10])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Internal Endpoint Pesonet';
+        }
+        field(50180; "P2M Wait Response Min."; Integer)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'P2M Response Wait Time Min.';
+            MinValue = 1;
+            MaxValue = 60;
+        }
+        field(50181; "P2M No. Series Ref. No."; Code[20])
+        {
+            TableRelation = "No. Series";
+            DataClassification = CustomerContent;
+        }
     }
     var
         IncExpAcc: Record "LSC Income/Expense Account";

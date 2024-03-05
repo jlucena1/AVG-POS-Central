@@ -8,6 +8,7 @@ codeunit 50003 "AVG Event Subs. Trans."
         AVGPOSSession: Codeunit "AVG POS Session";
         AVGFunctions: Codeunit "AVG Functions";
         AVGHttpFunctions: Codeunit "AVG Http Functions";
+        AVGP2MIntegration: Codeunit "AVG P2M AllBank Integration";
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction", OnAfterKeyboardTriggerToProcess, '', false, false)]
     local procedure OnAfterKeyboardTriggerToProcess(InputValue: Text; KeyboardTriggerToProcess: Integer; var Rec: Record "LSC POS Transaction"; var IsHandled: Boolean);
@@ -146,6 +147,8 @@ codeunit 50003 "AVG Event Subs. Trans."
         AVGHttpFunctions.ClearHttpVarsGCashQuery();
         LSCPOSSession.DeleteValue('LOYMEMBERCARD');
         LSCPOSSession.DeleteValue('LOYMEMBERNAME');
+        AVGP2MIntegration.ClearP2MValues();
+        AVGP2MIntegration.DeleteP2MRetailImage(POSTransaction."POS Terminal No.");
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Post Utility", OnAfterPostTransaction, '', false, false)]
@@ -224,8 +227,8 @@ codeunit 50003 "AVG Event Subs. Trans."
                     AVGTransLine."Res. Cash In/Out Mobile No.",
                     AVGTransLine."Res. Cash Out Ref. No.",
                     POSTerminalLoc)
-                then
-                    IsHandled := TRUE;
+                then;
+            // IsHandled := TRUE;
         END;
     end;
 
