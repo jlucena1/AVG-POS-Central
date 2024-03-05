@@ -8,10 +8,12 @@ table 99009650 "AVG Loyalty V2 Entry"
         field(1; "Store No."; Code[10])
         {
             Caption = 'Store No.';
+            TableRelation = "LSC Store"."No.";
         }
         field(2; "POS Terminal No."; Code[10])
         {
             Caption = 'POS Terminal No.';
+            TableRelation = "LSC POS Terminal"."No.";
         }
         field(3; "Transaction No."; Integer)
         {

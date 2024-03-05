@@ -253,9 +253,16 @@ codeunit 50001 "AVG POS Print Utility"
                             Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
                         end;
                     end;
-
-
-
+                    if PaymEntry."P2M Merch Token" <> '' then begin
+                        CLEAR(txtLValue2);
+                        txtLDesign := ' #L#########################';
+                        txtLValue2[1] := StrSubstNo('Bank: %1', PaymEntry."P2M Payment Channel");
+                        Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
+                        CLEAR(txtLValue2);
+                        txtLDesign := ' #L#########################';
+                        txtLValue2[1] := StrSubstNo('Ref. No.: %1', PaymEntry."P2M Bank Refrence");
+                        Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
+                    end;
                 end;
             until PaymEntry.Next = 0;
             LoyV2Entries.Reset();
@@ -386,7 +393,7 @@ codeunit 50001 "AVG POS Print Utility"
         IF Transaction."Transaction No." = 0 THEN
             EXIT;
 
-        IF Transaction."Official Receipt No." = '' THEN
+        IF (Transaction."Official Receipt No." = '') AND (Transaction."Reference AR_CR No." = '') THEN
             EXIT;
 
         LSCTransPaymentEntry.RESET;
@@ -398,6 +405,8 @@ codeunit 50001 "AVG POS Print Utility"
             repeat
                 IF LSCTenderType.Get(Transaction."Store No.", LSCTransPaymentEntry."Tender Type") THEN
                     NoOfCopies := LSCTenderType."No. of Copies";
+                if NoOfCopies <> 0 then
+                    break;
             until LSCTransPaymentEntry.Next() = 0;
 
         IF NoOfCopies = 0 then

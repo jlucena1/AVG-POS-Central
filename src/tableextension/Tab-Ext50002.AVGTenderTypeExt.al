@@ -14,5 +14,11 @@ tableextension 50002 "AVG Tender Type Ext." extends "LSC Tender Type"
         {
             DataClassification = CustomerContent;
         }
+        // AVG - Reserve for Future Use - Begin
+        // field(50103; "QR Code Image"; MediaSet)
+        // {
+        //     DataClassification = CustomerContent;
+        // }
+        // AVG - Reserve for Future Use - End
     }
 }

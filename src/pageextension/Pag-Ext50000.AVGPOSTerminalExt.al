@@ -361,6 +361,76 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
                         ToolTip = 'Specifies the value of the Loyalty V2 Cancel Transaction Endpoint field.';
                     }
                 }
+                group("P2M Integration")
+                {
+                    field("Enable P2M Pay"; Rec."Enable P2M Pay")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the Enable P2M Pay field.';
+                    }
+                    field("P2M URL"; Rec."P2M URL")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the P2M URL field.';
+                    }
+                    field("P2M Access ID"; Rec."P2M Access ID")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the P2M Access ID field.';
+                    }
+                    field("P2M Secret Key"; Rec."P2M Secret Key")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the P2M Secret Key field.';
+                    }
+                    field("P2M SoapAction URL"; Rec."P2M SoapAction URL")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the P2M SoapAction URL field.';
+                    }
+                    field("P2M Webhook Secret"; Rec."P2M Webhook Secret")
+                    {
+                        ApplicationArea = All;
+                    }
+                    group("P2M Internal API Setup")
+                    {
+                        field("P2M Username"; Rec."P2M Username")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the P2M Username field.';
+                        }
+                        field("P2M Password"; Rec."P2M Password")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the P2M Password field.';
+                        }
+                        field("P2M Internal Url"; Rec."P2M Internal Url")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the P2M Internal Url field.';
+                        }
+                        field("P2M Internal Endpt. P2M"; Rec."P2M Internal Endpt. P2M")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the P2M Internal Endpoint P2M field.';
+                        }
+                        // field("P2M Internal Endpt. Instapay"; Rec."P2M Internal Endpt. Instapay")
+                        // {
+                        //     ApplicationArea = All;
+                        //     ToolTip = 'Specifies the value of the P2M Internal Endpoint Instapay field.';
+                        // }
+                        // field("P2M Internal Endpt. Pesonet"; Rec."P2M Internal Endpt. Pesonet")
+                        // {
+                        //     ApplicationArea = All;
+                        //     ToolTip = 'Specifies the value of the P2M Internal Endpoint Pesonet field.';
+                        // }
+                        field("P2M Wait Response Min."; Rec."P2M Wait Response Min.")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the P2M Response Wait Time Min. field.';
+                        }
+                    }
+                }
             }
         }
     }

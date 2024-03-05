@@ -126,7 +126,8 @@ page 99009651 "AVG Wifi Pins Lists"
                         AccountPIN := TempAccountPIN;
                     IF (CSVBuffer.GetValue(CSVBuffer."Line No.", 1) <> '') AND
                        (AccountPIN <> '') AND
-                       (CSVBuffer.GetValue(CSVBuffer."Line No.", 3) <> '') THEN begin
+                       (CSVBuffer.GetValue(CSVBuffer."Line No.", 3) <> '')
+                    THEN begin
                         WifiPinsEntry.LOCKTABLE;
                         WifiPinsEntry.INIT;
                         WifiPinsEntry."Entry No." := Ctr;

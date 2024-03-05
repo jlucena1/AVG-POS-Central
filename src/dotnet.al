@@ -15,4 +15,9 @@ dotnet
         type(System.Array; CustArray) { }
         type(System.Text.Encoding; CustTextEncoding) { }
     }
+    assembly(System.Xml.Linq)
+    {
+        type(System.Xml.Linq.XElement; CustXElement) { }
+        type(System.Xml.Linq.XName; CustXName) { }
+    }
 }

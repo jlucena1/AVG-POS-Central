@@ -250,4 +250,128 @@ codeunit 99009651 "AVG POS Transaction"
     begin
         PrintWifiPinsDetails(Sender, MainSender, Transaction, PrintBuffer, PrintBufferIndex, LinesPrinted, DSTR1, IsHandled);
     end;
+
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnBeforeStaffLogon, '', false, false)]
+    // local procedure OnBeforeStaffLogon(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var CurrInput: Text; var Staff: Record "LSC Staff");
+    // var
+    //     LoginErrorMsg: Label 'Unable to Login Staff: %1 - %2. Previous Staff: %3 - %4 must need to process X-Report to close the current shift transactions.', Locked = true;
+    //     LSCStoreLoc: Record "LSC Store";
+    //     LSCStaff, LSCStaffPrevious : Record "LSC Staff";
+    // begin
+    //     if not LSCStoreLoc.Get(LSCPOSSessionCU.StoreNo()) then
+    //         exit;
+
+    //     if not LSCStoreLoc."AVG Enable Staff Login Control" then
+    //         exit;
+
+    //     if not LSCStaff.Get(CurrInput) then
+    //         exit;
+
+    //     if LSCStaff."Manager Privileges" = LSCStaff."Manager Privileges"::Yes then
+    //         exit;
+
+    //     if LSCStaff."Employment Type" = LSCStaff."Employment Type"::"Sales Person" then
+    //         exit;
+
+    //     if (POSTransaction."Last Staff ID Logon" <> '') AND
+    //         (POSTransaction."Last Staff ID Logon" <> LSCPOSSessionCU.StaffID())
+    //     then begin
+    //         if LSCStaffPrevious.Get(POSTransaction."Last Staff ID Logon") then begin
+    //             AVGPOSSessionCU.AVGPOSErrorMessages(StrSubstNo(LoginErrorMsg, LSCStaff.ID, LSCStaff."Name on Receipt", LSCStaffPrevious.ID, LSCStaffPrevious."Name on Receipt"));
+    //             clear(Staff);
+    //             exit;
+    //         end;
+    //     end else
+    //         IF not CheckStaffTransactionPerDay(CurrInput) then
+    //             POSTransaction."Last Staff ID Logon" := CurrInput;
+    // end;
+
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnBeforeLogoff, '', false, false)]
+    // local procedure OnBeforeLogoff(var POSTransaction: Record "LSC POS Transaction"; var SalesType: Record "LSC Sales Type"; var closePos: Boolean);
+    // begin
+    //     Message('x');
+    //     POSTransaction."Last Staff ID Logon" := LSCPOSSessionCU.StaffID();
+    // end;
+
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnAfterLogoff, '', false, false)]
+    // local procedure OnAfterLogoff(var POSTransaction: Record "LSC POS Transaction"; var SalesType: Record "LSC Sales Type"; var closePos: Boolean);
+    // begin
+    //     Message('Before: %1', POSTransaction."Last Staff ID Logon");
+    //     POSTransaction."Last Staff ID Logon" := LSCPOSSessionCU.StaffID();
+    //     POSTransaction.Modify();
+    //     Commit();
+    //     Message('After: %1', POSTransaction."Last Staff ID Logon");
+    // end;
+
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Controller", OnBeforeClosePOSPanelInLogoffPressed, '', false, false)]
+    // local procedure OnBeforeClosePOSPanelInLogoffPressed(ActivePanelID: Text; StartupControllerCodeunit: Integer; var CancelClosing: Boolean);
+    // begin
+    // end;
+
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Controller", OnBeforeClosePos, '', false, false)]
+    // local procedure OnBeforeClosePos(var shouldSkipClosing: Boolean; var shouldSkipConfirm: Boolean);
+    // var
+    //     LSCPOSTransactionRec: Record "LSC POS Transaction";
+    //     LSCStore: Record "LSC Store";
+    // begin
+    //     if not LSCStore.Get(LSCPOSSessionCU.StoreNo()) then
+    //         exit;
+
+    //     if not LSCStore."AVG Enable Staff Login Control" then
+    //         exit;
+    //     if LSCPOSTransactionRec.Get(LSCPOSSessionCU.GetValue('LASTPOSTRANS')) then begin
+    //         LSCPOSTransactionRec."Last Staff ID Logon" := LSCPOSSessionCU.StaffID();
+    //         LSCPOSTransactionRec.Modify();
+    //         shouldSkipClosing := true;
+    //         shouldSkipConfirm := true;
+    //     end;
+    // end;
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnBeforeCloseForm, '', false, false)]
+    // local procedure OnBeforeCloseForm(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var CurrInput: Text);
+    // begin
+    // end;
+
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnAfterPrintZReport, '', false, false)]
+    // local procedure OnAfterPrintZReport(var POSTransaction: Record "LSC POS Transaction"; DoCheck: Boolean; AskUser: Boolean);
+    // var
+    //     LSCStaffLoc: Record "LSC Staff";
+    //     LSCStoreLoc: Record "LSC Store";
+    // begin
+    //     if not LSCStoreLoc.Get(LSCPOSSessionCU.StoreNo()) then
+    //         exit;
+
+    //     if not LSCStoreLoc."AVG Enable Staff Login Control" then
+    //         exit;
+
+    //     if not LSCStaffLoc.Get(LSCPOSSessionCU.StaffID()) then
+    //         exit;
+
+    //     if LSCStaffLoc."Manager Privileges" = LSCStaffLoc."Manager Privileges"::Yes then
+    //         exit;
+
+    //     if LSCStaffLoc."Employment Type" = LSCStaffLoc."Employment Type"::"Sales Person" then
+    //         exit;
+
+    //     if POSTransaction."Staff ID" = LSCPOSSessionCU.StaffID() then begin
+    //         POSTransaction."Last Staff ID Logon" := '';
+    //         POSTransaction.Modify(true);
+    //     end;
+    // end;
+
+    // local procedure CheckStaffTransactionPerDay(pStaffID: Code[20]): Boolean
+    // var
+    //     LSCTransactionHeader: Record "LSC Transaction Header";
+    // begin
+    //     IF pStaffID <> '' then
+    //         exit(false);
+
+    //     LSCTransactionHeader.Reset();
+    //     LSCTransactionHeader.setrange("Store No.", LSCPOSSessionCU.StoreNo());
+    //     LSCTransactionHeader.SetRange(Date, Today);
+    //     LSCTransactionHeader.SetRange("Transaction Type", LSCTransactionHeader."Transaction Type"::Sales);
+    //     LSCTransactionHeader.SetRange("Staff ID", pStaffID);
+    //     if LSCTransactionHeader.FindFirst() then
+    //         exit(true);
+    // end;
+
 }

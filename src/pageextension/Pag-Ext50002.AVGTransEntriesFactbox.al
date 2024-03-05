@@ -116,7 +116,25 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
                             LoyaltyV2EntriesPag.RUNMODAL;
                         end;
                     }
-
+                }
+                group(P2M)
+                {
+                    field(P2MEntries; P2MEntries)
+                    {
+                        Caption = 'P2M Entries';
+                        ApplicationArea = All;
+                        trigger OnDrillDown()
+                        var
+                            P2MEntriesRec: Record "LSC Trans. Payment Entry";
+                            P2MEntriesPag: Page "AVG P2M Entries";
+                        begin
+                            FilterP2MEntries(P2MEntriesRec);
+                            P2MEntriesPag.SETTABLEVIEW(P2MEntriesRec);
+                            P2MEntriesPag.EDITABLE(FALSE);
+                            P2MEntriesPag.LOOKUPMODE(TRUE);
+                            P2MEntriesPag.RUNMODAL;
+                        end;
+                    }
                 }
             }
         }
@@ -129,6 +147,7 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
         GCashPayEntries := GetGCashPayEntries();
         LoyaltyEntries := GetLoyaltyEntries();
         LoyaltyEntriesV2 := GetLoyaltyV2Entries();
+        P2MEntries := GetP2MEntries();
     end;
 
     var
@@ -138,6 +157,7 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
         GCashPayEntries: Integer;
         LoyaltyEntries: Integer;
         LoyaltyEntriesV2: Integer;
+        P2MEntries: Integer;
 
     local procedure FilterAllEasyCashInEntries(var AllEasyCashInEntries: Record "AVG Trans. Line Entry")
     begin
@@ -205,6 +225,16 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
         LoyaltyV2Entries.FilterGroup(0);
     end;
 
+    local procedure FilterP2MEntries(var P2MEntries: Record "LSC Trans. Payment Entry")
+    begin
+        P2MEntries.FilterGroup(2);
+        P2MEntries.SetRange("Store No.", Rec."Store No.");
+        P2MEntries.SetRange("POS Terminal No.", Rec."POS Terminal No.");
+        P2MEntries.setrange("Transaction No.", Rec."Transaction No.");
+        P2MEntries.SetFilter("P2M Merch Token", '<>%1', '');
+        P2MEntries.FilterGroup(0);
+    end;
+
     local procedure GetAllEasyCashInEntries(): Decimal
     var
         AllEasyCashInRec: Record "AVG Trans. Line Entry";
@@ -251,5 +281,13 @@ pageextension 50002 "AVG Trans. Entries Factbox" extends "LSC Transaction Factbo
     begin
         FilterLoyaltyV2Entries(LoyaltyV2EntriesRec);
         EXIT(LoyaltyV2EntriesRec.Count);
+    end;
+
+    local procedure GetP2MEntries(): Decimal
+    var
+        P2MEntriesRec: Record "LSC Trans. Payment Entry";
+    begin
+        FilterP2MEntries(P2MEntriesRec);
+        EXIT(P2MEntriesRec.Count);
     end;
 }
