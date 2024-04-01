@@ -56,7 +56,6 @@ page 99009651 "AVG Wifi Pins Lists"
                 trigger OnAction()
                 var
                     txtFile: Text;
-                    InStr: InStream;
                 begin
                     CSVBuffer.Reset();
                     CSVBuffer.DeleteAll();

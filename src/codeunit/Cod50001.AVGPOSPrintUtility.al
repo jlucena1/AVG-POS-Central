@@ -2,8 +2,6 @@ codeunit 50001 "AVG POS Print Utility"
 {
     var
         AVGPOSSession: Codeunit "AVG POS Session";
-        AVGFunctions: Codeunit "AVG Functions";
-        AVGHttpFunctions: Codeunit "AVG Http Functions";
         LSCPOSFunctions: Codeunit "LSC POS Functions";
         GiftCardCurrencyCode: Code[10];
         LineLen: Integer;
@@ -119,6 +117,7 @@ codeunit 50001 "AVG POS Print Utility"
         txtLDesign: Text;
         RefNo: Text;
         LoyV2Entries: Record "AVG Loyalty V2 Entry";
+        MayaEntries: Record "AVG Maya Trans. Entries";
     begin
         Clear(PaymEntry);
         PaymEntry.SetRange("Store No.", Transaction."Store No.");
@@ -263,6 +262,41 @@ codeunit 50001 "AVG POS Print Utility"
                         txtLValue2[1] := StrSubstNo('Ref. No.: %1', PaymEntry."P2M Bank Refrence");
                         Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
                     end;
+                    MayaEntries.Reset();
+                    MayaEntries.setrange("Store No.", PaymEntry."Store No.");
+                    MayaEntries.SetRange("POS Terminal No.", PaymEntry."POS Terminal No.");
+                    MayaEntries.SetRange("Transaction No.", PaymEntry."Transaction No.");
+                    MayaEntries.setrange("Parent Line No.", PaymEntry."Line No.");
+                    if MayaEntries.FindSet() then
+                        repeat
+                            if MayaEntries."Maya Reference No." <> '' then begin
+                                CLEAR(txtLValue2);
+                                txtLDesign := ' #L#########################';
+                                txtLValue2[1] := StrSubstNo('Ref. No.: %1', MayaEntries."Maya Reference No.");
+                                Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
+                            end;
+
+                            if MayaEntries."Maya Auth Code" <> '' then begin
+                                CLEAR(txtLValue2);
+                                txtLDesign := ' #L#########################';
+                                txtLValue2[1] := StrSubstNo('Approval Code: %1', MayaEntries."Maya Auth Code");
+                                Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
+                            end;
+
+                            if MayaEntries."Maya Pan" <> '' then begin
+                                CLEAR(txtLValue2);
+                                txtLDesign := ' #L#########################';
+                                txtLValue2[1] := StrSubstNo('Card No.: %1', MayaEntries."Maya Pan");
+                                Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
+                            end;
+
+                            if MayaEntries."Maya App" <> '' then begin
+                                CLEAR(txtLValue2);
+                                txtLDesign := ' #L#########################';
+                                txtLValue2[1] := StrSubstNo('Card Type: %1', MayaEntries."Maya App");
+                                Sender.PrintLine(Sender.FormatLine(Sender.FormatStr(txtLValue2, txtLDesign), false, FALSE, FALSE, false));
+                            end;
+                        until MayaEntries.next = 0;
                 end;
             until PaymEntry.Next = 0;
             LoyV2Entries.Reset();

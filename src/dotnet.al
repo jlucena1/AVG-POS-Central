@@ -20,4 +20,8 @@ dotnet
         type(System.Xml.Linq.XElement; CustXElement) { }
         type(System.Xml.Linq.XName; CustXName) { }
     }
+    assembly(System)
+    {
+        type(System.Diagnostics.Process; StartInfo) { }
+    }
 }

@@ -838,7 +838,6 @@ codeunit 50002 "AVG Functions"
         LSCBarcode: Record "LSC Barcodes";
         LSCTenderType: Record "LSC Tender Type";
         Item: Record Item;
-        Crypto: Codeunit "Cryptography Management";
         Voided: Integer;
         Refund: Integer;
         ItemCount: Integer;

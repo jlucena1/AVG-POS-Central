@@ -17,7 +17,6 @@ codeunit 99009652 "AVG P2M AllBank Integration"
         TypeHelper: Codeunit "Type Helper";
         AVGFunctions: Codeunit "AVG Functions";
         QRPHHelper: Codeunit "PH QR Code Helper";
-        LSCPOSPostUtils: Codeunit "LSC POS Post Utility";
 
     trigger OnRun()
     begin
@@ -44,10 +43,10 @@ codeunit 99009652 "AVG P2M AllBank Integration"
                 P2MWaitResponse(LSCGlobalRec.Parameter);
             'P2MRESPONSETESTER':
                 ProcessP2MResponse('0000000701000000595', LSCPOSTerminal);
-            'P2MACCTINQ':
-                P2MAccountInquiry(true);
-            'P2MACCTSOA':
-                P2MAccountSOA(true);
+        // 'P2MACCTINQ':
+        //     P2MAccountInquiry(true);
+        // 'P2MACCTSOA':
+        //     P2MAccountSOA(true);
 
         END;
         Rec := LSCGlobalRec;
@@ -161,9 +160,12 @@ codeunit 99009652 "AVG P2M AllBank Integration"
         StrBuilder.Append(StrSubstNo(' make_static_qr="%1"', '0'));
         StrBuilder.Append(' />');
         P2M_BodyRawRequest := StrBuilder.ToString();
-
+        if LSCPOSTerminalRecLoc."P2M Prompt API Messages" then
+            AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Request: %1', P2M_BodyRawRequest));
         clear(P2M_Response);
         P2M_Response := PostP2MHttpRequest(LSCPOSTerminalRecLoc."P2M URL", P2M_BodyRawRequest, 'text/xml', LSCPOSTerminalRecLoc."P2M SoapAction URL");
+        if LSCPOSTerminalRecLoc."P2M Prompt API Messages" then
+            AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Response: %1', P2M_Response));
         IF P2M_Response <> '' then begin
             P2M_ResReturnCode := GetResponseXMLByPath(P2M_Response, 'ReturnCode');
             IF P2M_ResReturnCode = '0' then begin
@@ -205,16 +207,21 @@ codeunit 99009652 "AVG P2M AllBank Integration"
         StrBuilder.Append(StrSubstNo(' merc_token="%1"', pMercToken));
         StrBuilder.Append(' />');
         P2M_BodyRawRequest := StrBuilder.ToString();
-
+        if pCommand then
+            if LSCPOSTerminalLoc."P2M Prompt API Messages" then
+                AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Request: %1', P2M_BodyRawRequest));
         clear(P2M_Response);
         P2M_Response := PostP2MHttpRequest(LSCPOSTerminalLoc."P2M URL", P2M_BodyRawRequest, 'text/xml', LSCPOSTerminalLoc."P2M SoapAction URL");
+        if pCommand then
+            if LSCPOSTerminalLoc."P2M Prompt API Messages" then
+                AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Response: %1', P2M_Response));
         IF P2M_Response <> '' then begin
             P2M_ResReturnCode := GetResponseXMLByPath(P2M_Response, 'ReturnCode');
             ErrorMsgResponse := GetResponseXMLByPath(P2M_Response, 'ErrorMsg');
             IF P2M_ResReturnCode = '0' then begin
                 P2M_ResMerchToken := GetResponseXMLByPath(P2M_Response, 'merc_token');
                 if pCommand then
-                    AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse)
+                    AVGPOSSession.AVGPOSMessages(ErrorMsgResponse)
             end else
                 if pCommand then
                     AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse);
@@ -246,9 +253,12 @@ codeunit 99009652 "AVG P2M AllBank Integration"
         StrBuilder.Append(StrSubstNo(' merc_token="%1"', LSCPOSSession.GetValue('P2MMERCTOKEN')));
         StrBuilder.Append(' />');
         P2M_BodyRawRequest := StrBuilder.ToString();
-
+        if LSCPOSTerminal."P2M Prompt API Messages" then
+            AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Request: %1', P2M_BodyRawRequest));
         clear(P2M_Response);
         P2M_Response := PostP2MHttpRequest(LSCPOSTerminal."P2M URL", P2M_BodyRawRequest, 'text/xml', LSCPOSTerminal."P2M SoapAction URL");
+        if LSCPOSTerminal."P2M Prompt API Messages" then
+            AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Response: %1', P2M_Response));
         IF P2M_Response <> '' then begin
             P2M_ResReturnCode := GetResponseXMLByPath(P2M_Response, 'ReturnCode');
             IF P2M_ResReturnCode = '0' then begin
@@ -312,7 +322,11 @@ codeunit 99009652 "AVG P2M AllBank Integration"
         LSCHttpWrapper.SetHeader('Content-Type', 'application/json');
         LSCHttpWrapper.SetHeader('Authorization', StrSubstNo('Bearer %1', Auth));
         LSCHttpWrapper.Method('GET');
+        if pPOSTerminalRec."P2M Prompt API Messages" then
+            AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Request: %1', LSCHttpWrapper.GetRequestAsText()));
         if LSCHttpWrapper.Send() then begin
+            if pPOSTerminalRec."P2M Prompt API Messages" then
+                AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Response: %1', LSCHttpWrapper.ResponseText()));
             JObject3.ReadFrom(LSCHttpWrapper.ResponseText());
             LJToken := JObject3.Values;
             foreach JToken2 in LJToken do
@@ -442,7 +456,9 @@ codeunit 99009652 "AVG P2M AllBank Integration"
         if not LSCRetailImageLink.Insert() then
             LSCRetailImageLink.Modify();
         AVGPOSSession.AVGPOSMessages('Customer may now scan QR code displayed on POS screen.');
+#pragma warning disable AL0432
         LSCPOSSession.SetPosPicture(recID, 0);
+#pragma warning restore AL0432
         Commit();
         LSCPOSCtrlInterfaceCU.PostEvent('RUNCOMMAND', 'P2MWAITRESPONSE', pTenderTypeCode, '');
     end;
@@ -520,7 +536,8 @@ codeunit 99009652 "AVG P2M AllBank Integration"
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnAfterInsertPaymentLine, '', false, false)]
     local procedure OnAfterInsertPaymentLine(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var CurrInput: Text; var TenderTypeCode: Code[10]; var SkipCommit: Boolean);
     begin
-        ClearP2MValues();
+        IF LSCPOSSession.Getvalue('P2MMERCTOKEN') <> '' then
+            ClearP2MValues();
     end;
 
     local procedure ProcessP2MResponse(pReceiptNo: Text; pPOSTerminalRec: Record "LSC POS Terminal"): Boolean
@@ -542,102 +559,102 @@ codeunit 99009652 "AVG P2M AllBank Integration"
         end;
     end;
 
-    local procedure P2MAccountInquiry(pCommand: Boolean): Text
-    var
-        StrBuilder: DotNet StringBuilder;
-        P2M_Id, P2M_SecretKey, P2M_Tdt, P2M_Token, P2M_BodyRawRequest, P2M_Response, P2M_ResMerchToken, P2M_ResReturnCode : Text;
-        CryptoMgt: Codeunit "Cryptography Management";
-        CrpytoAlgo: Option MD5,SHA1,SHA256,SHA384,SHA512;
-        ErrorMsgResponse: Text;
-        LSCPOSTerminalLoc: Record "LSC POS Terminal";
-    begin
-        if not LSCPOSTerminalLoc.Get(LSCPOSSession.TerminalNo()) then
-            exit;
-        clear(ErrorMsgResponse);
-        clear(P2M_Tdt);
-        P2M_Tdt := P2MGetDto();
-        clear(P2M_Token);
-        clear(P2M_BodyRawRequest);
-        P2M_Id := LSCPOSTerminalLoc."P2M Access ID";
-        P2M_SecretKey := LSCPOSTerminalLoc."P2M Secret Key";
-        P2M_Token := CryptoMgt.GenerateHash(P2M_Id + P2M_SecretKey + P2M_Tdt, CrpytoAlgo::SHA1);
-        StrBuilder := StrBuilder.StringBuilder();
-        StrBuilder.Append('<Account.Info');
-        StrBuilder.Append(StrSubstNo(' id="%1"', P2M_Id));
-        StrBuilder.Append(StrSubstNo(' tdt="%1"', P2M_Tdt));
-        StrBuilder.Append(StrSubstNo(' token="%1"', P2M_Token));
-        StrBuilder.Append(StrSubstNo(' cmd="%1"', 'ACCOUNT-INQ'));
-        StrBuilder.Append(StrSubstNo(' acctno="%1"', '003-24-00028-8'));
-        StrBuilder.Append(' />');
-        P2M_BodyRawRequest := StrBuilder.ToString();
+    // local procedure P2MAccountInquiry(pCommand: Boolean): Text
+    // var
+    //     StrBuilder: DotNet StringBuilder;
+    //     P2M_Id, P2M_SecretKey, P2M_Tdt, P2M_Token, P2M_BodyRawRequest, P2M_Response : Text;
+    //     CryptoMgt: Codeunit "Cryptography Management";
+    //     CrpytoAlgo: Option MD5,SHA1,SHA256,SHA384,SHA512;
+    //     ErrorMsgResponse: Text;
+    //     LSCPOSTerminalLoc: Record "LSC POS Terminal";
+    // begin
+    //     if not LSCPOSTerminalLoc.Get(LSCPOSSession.TerminalNo()) then
+    //         exit;
+    //     clear(ErrorMsgResponse);
+    //     clear(P2M_Tdt);
+    //     P2M_Tdt := P2MGetDto();
+    //     clear(P2M_Token);
+    //     clear(P2M_BodyRawRequest);
+    //     P2M_Id := LSCPOSTerminalLoc."P2M Access ID";
+    //     P2M_SecretKey := LSCPOSTerminalLoc."P2M Secret Key";
+    //     P2M_Token := CryptoMgt.GenerateHash(P2M_Id + P2M_SecretKey + P2M_Tdt, CrpytoAlgo::SHA1);
+    //     StrBuilder := StrBuilder.StringBuilder();
+    //     StrBuilder.Append('<Account.Info');
+    //     StrBuilder.Append(StrSubstNo(' id="%1"', P2M_Id));
+    //     StrBuilder.Append(StrSubstNo(' tdt="%1"', P2M_Tdt));
+    //     StrBuilder.Append(StrSubstNo(' token="%1"', P2M_Token));
+    //     StrBuilder.Append(StrSubstNo(' cmd="%1"', 'ACCOUNT-INQ'));
+    //     StrBuilder.Append(StrSubstNo(' acctno="%1"', '003-24-00028-8'));
+    //     StrBuilder.Append(' />');
+    //     P2M_BodyRawRequest := StrBuilder.ToString();
 
-        clear(P2M_Response);
-        P2M_Response := PostP2MHttpRequest(LSCPOSTerminalLoc."P2M URL", P2M_BodyRawRequest, 'text/xml', LSCPOSTerminalLoc."P2M SoapAction URL");
-        message(P2M_Response);
-        // IF P2M_Response <> '' then begin
-        //     P2M_ResReturnCode := GetResponseXMLByPath(P2M_Response, 'ReturnCode');
-        //     ErrorMsgResponse := GetResponseXMLByPath(P2M_Response, 'ErrorMsg');
-        //     IF P2M_ResReturnCode = '0' then begin
-        //         P2M_ResMerchToken := GetResponseXMLByPath(P2M_Response, 'merc_token');
-        //         if pCommand then
-        //             AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse)
-        //     end else
-        //         if pCommand then
-        //             AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse);
-        //     if not pCommand then
-        //         exit(ErrorMsgResponse);
-        // end;
-    end;
+    //     clear(P2M_Response);
+    //     P2M_Response := PostP2MHttpRequest(LSCPOSTerminalLoc."P2M URL", P2M_BodyRawRequest, 'text/xml', LSCPOSTerminalLoc."P2M SoapAction URL");
+    //     message(P2M_Response);
+    //     IF P2M_Response <> '' then begin
+    //         P2M_ResReturnCode := GetResponseXMLByPath(P2M_Response, 'ReturnCode');
+    //         ErrorMsgResponse := GetResponseXMLByPath(P2M_Response, 'ErrorMsg');
+    //         IF P2M_ResReturnCode = '0' then begin
+    //             P2M_ResMerchToken := GetResponseXMLByPath(P2M_Response, 'merc_token');
+    //             if pCommand then
+    //                 AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse)
+    //         end else
+    //             if pCommand then
+    //                 AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse);
+    //         if not pCommand then
+    //             exit(ErrorMsgResponse);
+    //     end;
+    // end;
 
-    local procedure P2MAccountSOA(pCommand: Boolean): Text
-    var
-        StrBuilder: DotNet StringBuilder;
-        P2M_Id, P2M_SecretKey, P2M_Tdt, P2M_Token, P2M_BodyRawRequest, P2M_Response, P2M_ResMerchToken, P2M_ResReturnCode : Text;
-        CryptoMgt: Codeunit "Cryptography Management";
-        CrpytoAlgo: Option MD5,SHA1,SHA256,SHA384,SHA512;
-        ErrorMsgResponse: Text;
-        LSCPOSTerminalLoc: Record "LSC POS Terminal";
-    begin
-        if not LSCPOSTerminalLoc.Get(LSCPOSSession.TerminalNo()) then
-            exit;
-        clear(ErrorMsgResponse);
-        clear(P2M_Tdt);
-        P2M_Tdt := P2MGetDto();
-        clear(P2M_Token);
-        clear(P2M_BodyRawRequest);
-        P2M_Id := LSCPOSTerminalLoc."P2M Access ID";
-        P2M_SecretKey := LSCPOSTerminalLoc."P2M Secret Key";
-        P2M_Token := CryptoMgt.GenerateHash(P2M_Id + P2M_SecretKey + P2M_Tdt, CrpytoAlgo::SHA1);
-        StrBuilder := StrBuilder.StringBuilder();
-        StrBuilder.Append('<Account.Info');
-        StrBuilder.Append(StrSubstNo(' id="%1"', P2M_Id));
-        StrBuilder.Append(StrSubstNo(' tdt="%1"', P2M_Tdt));
-        StrBuilder.Append(StrSubstNo(' token="%1"', P2M_Token));
-        StrBuilder.Append(StrSubstNo(' cmd="%1"', 'ACCOUNT-SOA'));
-        StrBuilder.Append(StrSubstNo(' acctno="%1"', '003-24-00028-8'));
-        StrBuilder.Append(StrSubstNo(' ds="%1"', '02/01/2024')); // Date Start
-        StrBuilder.Append(StrSubstNo(' de="%1"', '02/01/2024')); // Date End
-        StrBuilder.Append(StrSubstNo(' trans_idcode="%1"', '0'));
-        StrBuilder.Append(' />');
-        P2M_BodyRawRequest := StrBuilder.ToString();
-
-        clear(P2M_Response);
-        P2M_Response := PostP2MHttpRequest(LSCPOSTerminalLoc."P2M URL", P2M_BodyRawRequest, 'text/xml', LSCPOSTerminalLoc."P2M SoapAction URL");
-        message(P2M_Response);
-        // IF P2M_Response <> '' then begin
-        //     P2M_ResReturnCode := GetResponseXMLByPath(P2M_Response, 'ReturnCode');
-        //     ErrorMsgResponse := GetResponseXMLByPath(P2M_Response, 'ErrorMsg');
-        //     IF P2M_ResReturnCode = '0' then begin
-        //         P2M_ResMerchToken := GetResponseXMLByPath(P2M_Response, 'merc_token');
-        //         if pCommand then
-        //             AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse)
-        //     end else
-        //         if pCommand then
-        //             AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse);
-        //     if not pCommand then
-        //         exit(ErrorMsgResponse);
-        // end;
-    end;
+    // local procedure P2MAccountSOA(pCommand: Boolean): Text
+    // var
+    //     StrBuilder: DotNet StringBuilder;
+    //     P2M_Id, P2M_SecretKey, P2M_Tdt, P2M_Token, P2M_BodyRawRequest, P2M_Response : Text;
+    //     CryptoMgt: Codeunit "Cryptography Management";
+    //     CrpytoAlgo: Option MD5,SHA1,SHA256,SHA384,SHA512;
+    //     ErrorMsgResponse: Text;
+    //     LSCPOSTerminalLoc: Record "LSC POS Terminal";
+    // begin
+    //     if not LSCPOSTerminalLoc.Get(LSCPOSSession.TerminalNo()) then
+    //         exit;
+    //     clear(ErrorMsgResponse);
+    //     clear(P2M_Tdt);
+    //     P2M_Tdt := P2MGetDto();
+    //     clear(P2M_Token);
+    //     clear(P2M_BodyRawRequest);
+    //     P2M_Id := LSCPOSTerminalLoc."P2M Access ID";
+    //     P2M_SecretKey := LSCPOSTerminalLoc."P2M Secret Key";
+    //     P2M_Token := CryptoMgt.GenerateHash(P2M_Id + P2M_SecretKey + P2M_Tdt, CrpytoAlgo::SHA1);
+    //     StrBuilder := StrBuilder.StringBuilder();
+    //     StrBuilder.Append('<Account.Info');
+    //     StrBuilder.Append(StrSubstNo(' id="%1"', P2M_Id));
+    //     StrBuilder.Append(StrSubstNo(' tdt="%1"', P2M_Tdt));
+    //     StrBuilder.Append(StrSubstNo(' token="%1"', P2M_Token));
+    //     StrBuilder.Append(StrSubstNo(' cmd="%1"', 'ACCOUNT-SOA'));
+    //     StrBuilder.Append(StrSubstNo(' acctno="%1"', '003-24-00028-8'));
+    //     StrBuilder.Append(StrSubstNo(' ds="%1"', '02/01/2024')); // Date Start
+    //     StrBuilder.Append(StrSubstNo(' de="%1"', '03/01/2024')); // Date End
+    //     StrBuilder.Append(StrSubstNo(' trans_idcode="%1"', '0'));
+    //     StrBuilder.Append(' />');
+    //     P2M_BodyRawRequest := StrBuilder.ToString();
+    //     message(P2M_BodyRawRequest);
+    //     clear(P2M_Response);
+    //     P2M_Response := PostP2MHttpRequest(LSCPOSTerminalLoc."P2M URL", P2M_BodyRawRequest, 'text/xml', LSCPOSTerminalLoc."P2M SoapAction URL");
+    //     message(P2M_Response);
+    //     IF P2M_Response <> '' then begin
+    //         P2M_ResReturnCode := GetResponseXMLByPath(P2M_Response, 'ReturnCode');
+    //         ErrorMsgResponse := GetResponseXMLByPath(P2M_Response, 'ErrorMsg');
+    //         IF P2M_ResReturnCode = '0' then begin
+    //             P2M_ResMerchToken := GetResponseXMLByPath(P2M_Response, 'merc_token');
+    //             if pCommand then
+    //                 AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse)
+    //         end else
+    //             if pCommand then
+    //                 AVGPOSSession.AVGPOSErrorMessages(ErrorMsgResponse);
+    //         if not pCommand then
+    //             exit(ErrorMsgResponse);
+    //     end;
+    // end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnBeforeVoidTransaction, '', false, false)]
     local procedure OnBeforeVoidTransaction(var POSTransaction: Record "LSC POS Transaction"; var IsHandled: Boolean);

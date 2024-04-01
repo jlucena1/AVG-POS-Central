@@ -18,6 +18,8 @@ codeunit 50005 "AVG POS Session"
         CurrGCashSelectedInfocode: Text;
         CurrGCashRefundAmount: Text;
         CurrLoyaltyTenderType: Code[20];
+        CurrMayaAmount: Text;
+        CurrMayaTenderType: Code[20];
 
     procedure AVGPOSErrorMessages(pTxt: Text)
     begin
@@ -68,6 +70,8 @@ codeunit 50005 "AVG POS Session"
         ClearCurrPayQRAmount();
         ClearCurrPayQRCode();
         ClearLoyaltyCurrTenderType();
+        ClearCurrMayaAmount();
+        ClearCurrMayaTenderType();
     end;
 
     procedure ClearCurrAuthToken()
@@ -273,5 +277,40 @@ codeunit 50005 "AVG POS Session"
     procedure GetCurrLoyaltyCurrTenderType(): Code[20];
     begin
         EXIT(CurrLoyaltyTenderType);
+    end;
+
+    procedure ClearCurrMayaAmount()
+    begin
+        CurrMayaAmount := '';
+    end;
+
+    procedure SetCurrMayaAmount(var pTxtMayaAmount: Text)
+    begin
+        CurrMayaAmount := pTxtMayaAmount;
+    end;
+
+    procedure GetCurrMayaAmount(): Text
+    begin
+        EXIT(CurrMayaAmount);
+    end;
+
+    procedure ClearCurrMayaTenderType()
+    begin
+        CurrMayaTenderType := '';
+    end;
+
+    procedure SetCurrMayaTenderType(var pTxtMayaTenderType: Text)
+    begin
+        CurrMayaTenderType := pTxtMayaTenderType;
+    end;
+
+    procedure GetCurrMayaTenderType(): Text
+    begin
+        EXIT(CurrMayaTenderType);
+    end;
+
+    procedure GetAVGSetup(var RecAVGSetup: Record "AVG Setup");
+    begin
+        RecAVGSetup := AVGSetup;
     end;
 }

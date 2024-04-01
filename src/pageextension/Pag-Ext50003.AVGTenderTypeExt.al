@@ -19,6 +19,7 @@ pageextension 50003 "AVG Tender Type Ext." extends "LSC Tender Type Card"
             group("AVG Customizations")
             {
 
+
                 field("No. of Copies"; Rec."No. of Copies")
                 {
                     ApplicationArea = All;
@@ -30,6 +31,16 @@ pageextension 50003 "AVG Tender Type Ext." extends "LSC Tender Type Card"
                 field("Exclude Refund Autopost"; Rec."Exclude Refund Autopost")
                 {
                     ApplicationArea = All;
+                }
+                field("AVG Maya Tender Type"; Rec."AVG Maya Tender Type")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the value of the Maya Tender Type field.';
+                }
+                field("AVG Maya Tender Type Args."; Rec."AVG Maya Tender Type Args.")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the value of the Maya Tender Type Args. field.';
                 }
             }
 

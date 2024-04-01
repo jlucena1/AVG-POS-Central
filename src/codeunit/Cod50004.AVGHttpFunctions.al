@@ -5,13 +5,11 @@ codeunit 50004 "AVG Http Functions"
 
     var
         txtResponse: Text;
-        JToken: JsonToken;
         AVGPOSFunctions: Codeunit "AVG POS Functions";
         AVGPOSSession: Codeunit "AVG POS Session";
         LSCHttpWrapper: Codeunit "LSC Http Wrapper";
         LSCHttpWrapperGCashQuery: Codeunit "LSC Http Wrapper";
         LSCPOSTransactionCU: Codeunit "LSC POS Transaction";
-        LSCPOSTransLineCU: Codeunit "LSC POS Trans. Lines";
         LSCPOSSession: Codeunit "LSC POS Session";
         LSCAuthType: Enum "LSC Http AuthType";
         LSCContentType: Enum "LSC Http ContentType";

@@ -1,4 +1,4 @@
-codeunit 50000 "AVG Integration Execute"
+codeunit 50000 "AVG External Commands"
 {
     SingleInstance = true;
     TableNo = "LSC POS Menu Line";

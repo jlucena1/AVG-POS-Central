@@ -7,7 +7,6 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
             group("AVG Customizations")
             {
                 Caption = 'AVG Customizations';
-
                 group("AllEasy Integration")
                 {
                     Caption = 'AllEasy Integration';
@@ -368,11 +367,17 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
                         ApplicationArea = All;
                         ToolTip = 'Specifies the value of the Enable P2M Pay field.';
                     }
+                    field("P2M Prompt API Messages"; Rec."P2M Prompt API Messages")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Specifies the value of the P2M Prompt API Messages field.';
+                    }
                     field("P2M URL"; Rec."P2M URL")
                     {
                         ApplicationArea = All;
                         ToolTip = 'Specifies the value of the P2M URL field.';
                     }
+
                     field("P2M Access ID"; Rec."P2M Access ID")
                     {
                         ApplicationArea = All;
@@ -430,10 +435,164 @@ pageextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal Card"
                             ToolTip = 'Specifies the value of the P2M Response Wait Time Min. field.';
                         }
                     }
+                    group("Maya Integration")
+                    {
+                        field("Enable Maya Integration"; Rec."Enable Maya Integration")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the Enable Maya Integration field.';
+                        }
+                        field("Maya Python Exe Path"; Rec."Maya Python Exe Path")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the Maya Python Exe Path field.';
+                        }
+                        field("Maya COM Port"; Rec."Maya COM Port")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the Maya COM Port field.';
+                        }
+                        field("Maya Py Script Path"; Rec."Maya Py Script Path")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the Maya Py Script Path field.';
+                        }
+                        field("Maya Terminal Timeout (ms)"; Rec."Maya Terminal Timeout (ms)")
+                        {
+                            ApplicationArea = All;
+                            ToolTip = 'Specifies the value of the Maya Terminal Timeout (ms) field.';
+                        }
+                    }
                 }
             }
+
         }
+
     }
+    // actions
+    // {
+    //     addafter(Category_Category6)
+    //     {
+    //         group("Initialize Integration Setup")
+    //         {
+    //             group("AllEasy Integration Setup")
+    //             {
+    //                 actionref(AllEasyCashIn_Promoted; AllEasyCashIn)
+    //                 {
+    //                 }
+    //                 actionref(AllEasyCashOut_Promoted; AllEasyCashOut)
+    //                 {
+    //                 }
+    //                 actionref(AllEasyPayQR_Promoted; AllEasyPayQR)
+    //                 {
+    //                 }
+    //             }
+    //             group("GCash Integration Setup")
+    //             {
+    //                 actionref(GCash_Promoted; GCash)
+    //                 {
+
+    //                 }
+    //             }
+    //             group("Loyalty Integration Setup")
+    //             {
+    //                 actionref(Loyalty_Promoted; Loyalty)
+    //                 {
+
+    //                 }
+    //             }
+    //             group("Loyalty Integration Setup V2")
+    //             {
+    //                 actionref(LoyaltyV2_Promoted; LoyaltyV2)
+    //                 {
+
+    //                 }
+    //             }
+    //             group("P2M Integration Setup")
+    //             {
+    //                 actionref(P2M_Promoted; P2M)
+    //                 {
+
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     addafter(Sales)
+    //     {
+    //         action(AllEasyCashIn)
+    //         {
+    //             Caption = 'AllEasy Cash In';
+    //             ApplicationArea = All;
+
+    //             trigger OnAction()
+    //             begin
+    //                 Message('AllEasy In');
+    //             end;
+    //         }
+    //         action(AllEasyCashOut)
+    //         {
+    //             Caption = 'AllEasy Cash Out';
+    //             ApplicationArea = All;
+
+    //             trigger OnAction()
+    //             begin
+    //                 MEssage('AllEasy Cash Out');
+    //             end;
+    //         }
+    //         action(AllEasyPayQR)
+    //         {
+    //             Caption = 'AllEasy Cash Pay QR';
+    //             ApplicationArea = All;
+
+    //             trigger OnAction()
+    //             begin
+    //                 message('AllEasyPayQR');
+    //             end;
+    //         }
+    //         action(GCash)
+    //         {
+    //             Caption = 'GCash';
+    //             ApplicationArea = All;
+
+    //             trigger OnAction()
+    //             begin
+    //                 message('GCash');
+    //             end;
+    //         }
+    //         action(Loyalty)
+    //         {
+    //             caption = 'Loyalty';
+    //             ApplicationArea = All;
+
+    //             trigger OnAction()
+    //             begin
+    //                 message('Loyalty');
+    //             end;
+    //         }
+    //         action(LoyaltyV2)
+    //         {
+    //             Caption = 'Loyalty V2';
+    //             ApplicationArea = All;
+
+    //             trigger OnAction()
+    //             begin
+    //                 message('LoyaltyV2');
+    //             end;
+    //         }
+    //         action(P2M)
+    //         {
+    //             Caption = 'P2M';
+    //             ApplicationArea = All;
+
+    //             trigger OnAction()
+    //             begin
+    //                 message('P2M');
+    //             end;
+    //         }
+    //     }
+    // }
+
     trigger OnOpenPage()
     begin
         CLEAR(GCashPrivateKey);

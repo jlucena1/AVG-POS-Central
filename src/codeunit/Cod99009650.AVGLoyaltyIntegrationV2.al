@@ -10,11 +10,8 @@ codeunit 99009650 "AVG Loyalty Integration V2"
         LSCPOSTransLineRec: Record "LSC POS Trans. Line";
         LSCPOSTransactionCU: Codeunit "LSC POS Transaction";
         LSCPOSFunctionsCU: Codeunit "LSC POS Functions";
-        LSCPOSTransLineCU: Codeunit "LSC POS Trans. Lines";
-        LSCPOSCtrlInterfaceCU: Codeunit "LSC POS Control Interface";
         LSCPOSGui: Codeunit "LSC POS GUI";
         LSCPOSSession: Codeunit "LSC POS Session";
-        LSCAuthType: Enum "LSC Http AuthType";
         AVGPOSSession: Codeunit "AVG POS Session";
         AVGFunctions: Codeunit "AVG Functions";
         LOYV2BalanceInqText: Label 'Scan/Enter QR Code', Locked = true;

@@ -13,7 +13,6 @@ codeunit 99009651 "AVG POS Transaction"
         LSCFunctionalityProfile: Record "LSC POS Func. Profile";
         LSCPOSTransLineRec: Record "LSC POS Trans. Line";
         LSCPOSTransactionRec: Record "LSC POS Transaction";
-        AVGPOSPrintUtils: Codeunit "AVG POS Print Utility";
 
     trigger OnRun()
     begin
