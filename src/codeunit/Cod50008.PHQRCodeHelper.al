@@ -54,7 +54,6 @@ codeunit 50008 "PH QR Code Helper"
     begin
         QRImageTempBlob.CreateInStream(InStream);
         QRImageTempBlob.CreateOutStream(OutStream);
-        // QRImageBitmap := QRImageBitmap.Bitmap(300 * ratioX, 300 * ratioY);
         QRImageBitmap := QRImageBitmap.FromStream(InStream);
         Graphics := Graphics.FromImage(QRImageBitmap);
         PHCrossTempBlob.CreateInStream(InStream);
