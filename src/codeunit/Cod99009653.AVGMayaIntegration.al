@@ -12,6 +12,7 @@ codeunit 99009653 "AVG Maya Integration"
         LSCPOSFunctionsCU: Codeunit "LSC POS Functions";
         LSCPOSCtrlInterfaceCU: Codeunit "LSC POS Control Interface";
         LSCPOSSession: Codeunit "LSC POS Session";
+        LSCPOSGui: Codeunit "LSC POS GUI";
         AVGPOSSession: Codeunit "AVG POS Session";
         AVGPOSFunctions: Codeunit "AVG POS Functions";
         TypeHelper: Codeunit "Type Helper";
@@ -28,24 +29,20 @@ codeunit 99009653 "AVG Maya Integration"
         LSCFunctionalityProfile.GET(LSCPOSSession.FunctionalityProfileID());
         IF LSCPOSTransLineRec.GET(LSCGlobalRec."Current-RECEIPT", LSCGlobalRec."Current-LINE") THEN;
         AVGFunctions.SetGlobalLSCPOSMenuLine(LSCGlobalRec);
-        AVGPOSSession.ClearCurrMayaTenderType();
-        AVGPOSSession.SetCurrMayaTenderType(Rec.Parameter);
-        IF NOT InitializeMaya() then
-            EXIT;
         CASE Rec.Command of
             'MAYACHECK':
                 MayaCheckEx(Rec.Parameter);
             'MAYAPAY':
                 MayaPayEx(Rec.Parameter);
+            'MAYAVOID':
+                MayaVoidEx();
         END;
         Rec := LSCGlobalRec;
     end;
 
     procedure InitializeMaya(): Boolean
-    var
-        LSCTenderType: Record "LSC Tender Type";
-        TenderType: Code[20];
     begin
+
         IF NOT LSCPOSTerminal."Enable Maya Integration" THEN
             EXIT(FALSE);
 
@@ -58,29 +55,82 @@ codeunit 99009653 "AVG Maya Integration"
         IF LSCPOSTerminal."Maya Python Exe Path" = '' then
             exit(false);
 
-        CLEAR(TenderType);
-        TenderType := AVGPOSSession.GetCurrMayaTenderType();
-        IF TenderType = '' then
-            EXIT(FALSE);
 
-        IF NOT LSCTenderType.Get(LSCPOSTerminal."Store No.", TenderType) then
-            EXIT(FALSE);
-
-        IF LSCTenderType."AVG Maya Tender Type" = LSCTenderType."AVG Maya Tender Type"::" " THEN
-            EXIT(FALSE);
         EXIT(TRUE);
     end;
 
     local procedure MayaCheckEx(Parameter: Text)
     begin
-        ProcessMaya('', 1);
+        IF NOT InitializeMaya() then
+            EXIT;
+
+        ProcessMaya('', 1, '', '');
     end;
 
     local procedure MayaPayEx(Parameter: Text)
+    var
+        LSCTenderType: Record "LSC Tender Type";
     begin
+        AVGPOSSession.ClearCurrMayaTenderType();
+        AVGPOSSession.SetCurrMayaTenderType(Parameter);
 
+        IF Parameter = '' then
+            exit;
+
+        IF NOT LSCTenderType.Get(LSCPOSTerminal."Store No.", Parameter) then
+            exit;
+
+        IF LSCTenderType."AVG Maya Tender Type" = LSCTenderType."AVG Maya Tender Type"::" " THEN
+            exit;
+        IF NOT InitializeMaya() then
+            EXIT;
         LSCPOSTransactionCU.OpenNumericKeyboard('Maya Amount', 0, LSCPOSFunctionsCU.FormatAmount(LSCPOSTransactionCU.GetOutstandingBalance()), 99009653);
         EXIT;
+    end;
+
+    local procedure MayaVoidEx()
+    begin
+        IF NOT InitializeMaya() then
+            EXIT;
+        LSCPOSGui.OpenAlphabeticKeyboard('Enter Receipt Trace No.', '', AVGPOSSession.GetHideKeybValues, '#MAYATRACENO', 6);
+        exit;
+    end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction", OnBeforeProcessKeyBoardResult, '', false, false)]
+    local procedure "LSC POS Transaction_OnBeforeProcessKeyBoardResult"(Payload: Text; InputValue: Text; ResultOK: Boolean; var IsHandled: Boolean)
+    begin
+        case Payload of
+            '#MAYATRACENO':
+                begin
+                    if ResultOK then begin
+                        if InputValue <> '' then begin
+                            message('Input Value 1: %1', InputValue);
+                            LSCPOSSession.SetValue('MAYATRACENO', InputValue);
+                            LSCPOSGui.OpenAlphabeticKeyboard('Enter Terminal Password', '', AVGPOSSession.GetHideKeybValues, '#MAYAPWD', 6);
+                        end;
+                    end;
+                    IsHandled := true;
+                    exit;
+                end;
+            '#MAYAPWD':
+                begin
+                    if ResultOK then begin
+                        IsHandled := true;
+                        if InputValue <> '' then begin
+                            message('Input Value 2: %1', InputValue);
+                            LSCPOSSession.SetValue('MAYAPWD', InputValue);
+                            if (LSCPOSSession.GetValue('MAYATRACENO') = '') AND (LSCPOSSession.GetValue('MAYAPWD') = '') then
+                                AVGPOSFunctions.AVGPOSErrorMessage('Invalid Trace No. or Terminal Password.')
+                            else
+                                ProcessMaya('', 3, LSCPOSSession.GetValue('MAYATRACENO'), LSCPOSSession.GetValue('MAYAPWD'));
+                            Message(LSCPOSSession.GetValue('MAYATRACENO'));
+                            Message(LSCPOSSession.GetValue('MAYAPWD'));
+                        end;
+                    end;
+                    IsHandled := true;
+                    exit;
+                end;
+        end;
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction", OnAfterKeyboardTriggerToProcess, '', false, false)]
@@ -92,7 +142,6 @@ codeunit 99009653 "AVG Maya Integration"
         decLAmount: Decimal;
         txtLAmount: Text;
         MayaAmountText: Text;
-
     begin
         case KeyboardTriggerToProcess of
             99009653:
@@ -114,13 +163,15 @@ codeunit 99009653 "AVG Maya Integration"
                     decLAmount := decLAmount * 100;
                     CLEAR(MayaAmountText);
                     MayaAmountText := DelChr(Format(decLAmount), '=', ',.');
-                    ProcessMaya(MayaAmountText, 2);
+                    ProcessMaya(MayaAmountText, 2, '', '');
                     IsHandled := true;
                 end;
         end;
     end;
 
-    procedure ProcessMaya(pTxtAmount: Text; pIntTrigger: Integer): Boolean
+
+
+    procedure ProcessMaya(pTxtAmount: Text; pIntTrigger: Integer; pTxtMayaTraceNo: Text; pTxtMayaPassword: Text): Boolean
     var
 
         StringArgs, StringOutput : Text;
@@ -179,19 +230,12 @@ codeunit 99009653 "AVG Maya Integration"
                 begin
                     StringArgs := StrSubstNo('%1', LSCPOSTerminalLoc."Maya Py Script Path" +
                                     ' -t ' + LSCPOSTerminalLoc."Maya COM Port" +
-                                    ' -c SALE --amount ' + pTxtAmount);
-                end;
-            AVGMayaCommands::"Maya Settle":
-                begin
-                    StringArgs := StrSubstNo('%1', LSCPOSTerminalLoc."Maya Py Script Path" +
-                                    ' -t ' + LSCPOSTerminalLoc."Maya COM Port" +
-                                    ' -c SALE --amount ' + pTxtAmount);
-                end;
-            AVGMayaCommands::"Maya Reprint":
-                begin
-                    StringArgs := StrSubstNo('%1', LSCPOSTerminalLoc."Maya Py Script Path" +
-                                    ' -t ' + LSCPOSTerminalLoc."Maya COM Port" +
-                                    ' -c SALE --amount ' + pTxtAmount);
+                                    ' -c VOID --txnId ' + pTxtMayaTraceNo + ' --pwd ' + pTxtMayaPassword);
+                    StringOutput := ProcessMayaECR(LSCPOSTerminalLoc, StringArgs);
+                    if StringOutput = '' then
+                        exit(false);
+                    ProcessMayaJson(StringOutput, 3);
+                    ProcessMayaResponse();
                 end;
         end;
     end;

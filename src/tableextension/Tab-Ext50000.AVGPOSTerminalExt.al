@@ -427,7 +427,7 @@ tableextension 50000 "AVG POS Terminal Ext." extends "LSC POS Terminal"
             DataClassification = CustomerContent;
             Caption = 'P2M Password';
         }
-        field(50079; "P2M Internal Url"; Text[50])
+        field(50079; "P2M Internal Url"; Text[80])
         {
             DataClassification = CustomerContent;
             Caption = 'P2M Internal Url';
