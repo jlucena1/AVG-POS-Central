@@ -322,8 +322,6 @@ codeunit 99009652 "AVG P2M AllBank Integration"
         LSCHttpWrapper.SetHeader('Content-Type', 'application/json');
         LSCHttpWrapper.SetHeader('Authorization', StrSubstNo('Bearer %1', Auth));
         LSCHttpWrapper.Method('GET');
-        if pPOSTerminalRec."P2M Prompt API Messages" then
-            AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Request: %1', LSCHttpWrapper.GetRequestAsText()));
         if LSCHttpWrapper.Send() then begin
             if pPOSTerminalRec."P2M Prompt API Messages" then
                 AVGPOSFunctions.AVGPOSMessage(StrSubstNo('Response: %1', LSCHttpWrapper.ResponseText()));
